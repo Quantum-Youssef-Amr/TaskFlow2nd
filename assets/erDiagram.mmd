@@ -1,0 +1,45 @@
+erDiagram
+
+    TEAMS {
+        int id PK
+        varchar name
+        timestamp created_at
+    }
+
+    USERS {
+        int id PK
+        varchar name
+        varchar email
+        varchar password
+        enum role
+        int team_id FK
+        timestamp created_at
+    }
+
+    PROJECTS {
+        int id PK
+        varchar name
+        text description
+        int team_id FK
+        timestamp created_at
+    }
+
+    TASKS {
+        int id PK
+        int projectId FK
+        varchar title
+        text description
+        json comments
+        varchar assignee
+        enum priority
+        date due
+        enum status
+        int team_id FK
+        timestamp created_at
+    }
+
+    TEAMS ||--o{ USERS : "has"
+    TEAMS ||--o{ PROJECTS : "owns"
+    TEAMS ||--o{ TASKS : "contains"
+
+    PROJECTS ||--o{ TASKS : "has"

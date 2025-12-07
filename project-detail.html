@@ -12,7 +12,7 @@
 <body>
     <div class="container mt-5 pt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 id="projectTitle">Loading...</h1>
+            <h1 id="projectTitle" class="text-white fw-bold">Loading...</h1>
             <div>
                 <button class="btn btn-accent me-2" data-bs-toggle="modal" data-bs-target="#taskModal">+ Add
                     Task</button>
@@ -21,23 +21,23 @@
             </div>
         </div>
 
-        <div class="row">
+        <div class="row g-4">
             <div class="col-md-4">
-                <div class="kanban-col">
-                    <h5 class="text-accent">To Do</h5>
-                    <div id="todoColumn" class="tasks"></div>
+                <div class="kanban-col shadow-lg">
+                    <h5 class="text-accent mb-3">To Do</h5>
+                    <div id="todoColumn" data-status="todo" class="tasks min-vh-50"></div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="kanban-col">
-                    <h5 class="text-warning">In Progress</h5>
-                    <div id="inProgressColumn" class="tasks"></div>
+                <div class="kanban-col shadow-lg">
+                    <h5 class="text-warning mb-3">In Progress</h5>
+                    <div id="inProgressColumn" data-status="in-progress" class="tasks min-vh-50"></div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="kanban-col">
-                    <h5 class="text-success">Done</h5>
-                    <div id="doneColumn" class="tasks"></div>
+                <div class="kanban-col shadow-lg">
+                    <h5 class="text-success mb-3">Done</h5>
+                    <div id="doneColumn" data-status="done" class="tasks min-vh-50"></div>
                 </div>
             </div>
         </div>
@@ -47,26 +47,45 @@
     <div class="modal fade" id="taskModal">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5>Add Task</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">Add New Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="text" id="taskTitle" class="form-control mb-3" placeholder="Title">
-                    <textarea id="taskDesc" class="form-control mb-3" placeholder="Description"></textarea>
-                    <select id="taskAssignee" class="form-select mb-3">
-                        <!-- Filled dynamically -->
-                    </select>
-                    <select id="taskPriority" class="form-select mb-3">
-                        <option>low</option>
-                        <option>medium</option>
-                        <option>high</option>
-                        <option>critical</option>
-                    </select>
-                    <input type="date" id="taskDue" class="form-control mb-3">
-                    <input type="file" id="taskFiles" class="form-control" multiple>
+                    <input type="text" id="taskTitle" class="form-control form-control-lg mb-3" placeholder="Task Title"
+                        required>
+                    <textarea id="taskDesc" class="form-control mb-3" rows="3" placeholder="Description"></textarea>
+
+                    <div class="mb-3">
+                        <label class="form-label text-accent fw-bold">Assign To</label>
+                        <select id="taskAssignee" class="form-select form-select-lg" required>
+                            <option value="">Select team member...</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-accent fw-bold">Priority</label>
+                        <select id="taskPriority" class="form-select form-select-lg">
+                            <option value="low">Low Priority</option>
+                            <option value="medium">Medium Priority</option>
+                            <option value="high">High Priority</option>
+                            <option value="critical">Critical Priority</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-accent fw-bold">Due Date</label>
+                        <input type="date" id="taskDue" class="form-control form-control-lg">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-accent fw-bold">Attach Files</label>
+                        <input type="file" id="taskFiles" class="form-control" multiple>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button id="saveTaskBtn" class="btn btn-accent">Save</button>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button id="saveTaskBtn" class="btn btn-accent px-5">Create Task</button>
                 </div>
             </div>
         </div>
@@ -76,25 +95,25 @@
     <div class="modal fade" id="editTaskModal">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5>Edit Task</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">Edit Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="text" id="editTaskTitle" class="form-control mb-3">
-                    <textarea id="editTaskDesc" class="form-control mb-3"></textarea>
-                    <select id="editTaskAssignee" class="form-select mb-3">
-                        <!-- Filled dynamically -->
-                    </select>
+                    <input type="text" id="editTaskTitle" class="form-control form-control-lg mb-3">
+                    <textarea id="editTaskDesc" class="form-control mb-3" rows="3"></textarea>
+                    <select id="editTaskAssignee" class="form-select mb-3"></select>
                     <select id="editTaskPriority" class="form-select mb-3">
-                        <option>low</option>
-                        <option>medium</option>
-                        <option>high</option>
-                        <option>critical</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
                     </select>
                     <input type="date" id="editTaskDue" class="form-control mb-3">
                 </div>
-                <div class="modal-footer">
-                    <button id="saveEditTaskBtn" class="btn btn-accent">Save Changes</button>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button id="saveEditTaskBtn" class="btn btn-accent px-5">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -104,8 +123,8 @@
     <div class="modal fade" id="taskDetailModal">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header d-flex justify-content-between">
-                    <h5 id="detailTitle"></h5>
+                <div class="modal-header d-flex justify-content-between border-0">
+                    <h5 id="detailTitle" class="fw-bold"></h5>
                     <div>
                         <button id="editTaskBtn" class="btn btn-warning btn-sm me-2" style="display:none;">Edit</button>
                         <button id="deleteTaskBtn" class="btn btn-danger btn-sm" style="display:none;"
@@ -113,24 +132,26 @@
                     </div>
                 </div>
                 <div class="modal-body">
-                    <p><strong>Description:</strong> <span id="detailDesc"></span></p>
-                    <p><strong>Assignee:</strong> <span id="detailAssignee"></span> | <strong>Priority:</strong> <span
-                            id="detailPriority"></span> | <strong>Due:</strong> <span id="detailDue"></span></p>
+                    <p><strong>Description:</strong> <span id="detailDesc" class="text-light"></span></p>
+                    <p><strong>Assignee:</strong> <span id="detailAssignee" class="text-accent"></span> |
+                        <strong>Priority:</strong> <span id="detailPriority" class="text-warning"></span> |
+                        <strong>Due:</strong> <span id="detailDue" class="text-info"></span>
+                    </p>
                     <p><strong>Status:</strong>
-                        <select id="detailStatus" class="form-select w-auto d-inline">
+                        <select id="detailStatus" class="form-select w-auto d-inline ms-2">
                             <option value="todo">To Do</option>
                             <option value="in-progress">In Progress</option>
                             <option value="done">Done</option>
                         </select>
                     </p>
-                    <hr>
+                    <hr class="border-secondary">
                     <h6>Attached Files</h6>
                     <ul id="fileList" class="list-group mb-3"></ul>
-                    <hr>
+                    <hr class="border-secondary">
                     <h6>Comments</h6>
                     <ul id="commentList" class="list-group mb-3"></ul>
                     <div class="input-group">
-                        <input type="text" id="newComment" class="form-control" placeholder="Add comment...">
+                        <input type="text" id="newComment" class="form-control" placeholder="Write a comment...">
                         <input type="file" id="commentFile" class="form-control">
                         <button class="btn btn-accent" onclick="addComment()">Post</button>
                     </div>
@@ -142,12 +163,39 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/main.js"></script>
     <script>
-        const params = new URLSearchParams(location.search);
-        const projectId = parseInt(params.get('id'));
-        const project = projects.find(p => p.id === projectId);
-        if (project) document.getElementById('projectTitle').textContent = project.name;
+        // Upload helper: sends a File to the backend and returns stored URL
+        async function uploadFileToServer(file) {
+            if (!file) return null;
+            try {
+                const fd = new FormData();
+                fd.append('file', file, file.name);
+                const res = await fetch('http://localhost:5000/api/upload', {
+                    method: 'POST',
+                    body: fd
+                });
+                const data = await res.json();
+                if (data && data.success) return { name: data.name || file.name, data: data.url };
+                return null;
+            } catch (err) {
+                console.warn('Upload failed', err);
+                return null;
+            }
+        }
 
-        if (localStorage.getItem('role') === 'manager') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = parseInt(urlParams.get('id'));
+        const teamId = localStorage.getItem('teamId');
+        const currentUserRole = localStorage.getItem('role');
+        const currentUserName = localStorage.getItem('user');
+
+        // Show project title (coerce id types to avoid mismatches from DB strings)
+        const project = window.projects.find(p => Number(p.id) === projectId);
+        if (project) {
+            document.getElementById('projectTitle').textContent = project.name;
+        }
+
+        // Show delete button only for manager
+        if (currentUserRole === 'manager') {
             document.getElementById('deleteProjectBtn').style.display = 'inline-block';
         }
 
@@ -159,106 +207,171 @@
 
         let currentTask = null;
 
-        // Load real users
-        const appUsers = JSON.parse(localStorage.getItem('appUsers')) || [
-            { name: "Alex Johnson", email: "alex@taskflow.com" },
-            { name: "Mike Chen", email: "mike@taskflow.com" },
-            { name: "Lisa Park", email: "lisa@taskflow.com" },
-            { name: "Tom Wilson", email: "tom@taskflow.com" }
-        ];
+        // Load real team members from login data (fallback to localStorage if needed)
+        const teamUsers = (window.appUsers && window.appUsers.length ? window.appUsers : (JSON.parse(localStorage.getItem('teamUsers') || '[]')))
+            .filter(u => String(u.team_id) === String(teamId));
 
-        function populateAssigneeSelects() {
-            const select1 = document.getElementById('taskAssignee');
-            const select2 = document.getElementById('editTaskAssignee');
-            [select1, select2].forEach(sel => {
-                sel.innerHTML = appUsers.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+        // Populate assignee dropdowns
+        function populateAssigneeDropdowns() {
+            const selects = [document.getElementById('taskAssignee'), document.getElementById('editTaskAssignee')];
+            // If teamUsers is empty, try to reload from localStorage once more
+            const members = (teamUsers && teamUsers.length) ? teamUsers : (JSON.parse(localStorage.getItem('teamUsers') || '[]')).filter(u => String(u.team_id) === String(teamId));
+            console.log('Populating assignees with members:', members);
+            selects.forEach(select => {
+                if (!select) return;
+                select.innerHTML = '<option value="">Select team member...</option>';
+                members.forEach(user => {
+                    const opt = document.createElement('option');
+                    // Support users that may only have email or id fields
+                    opt.value = user.name || user.email || user.id || '';
+                    opt.textContent = user.name || user.email || (`User ${user.id || ''}`);
+                    select.appendChild(opt);
+                });
             });
         }
 
         function renderTasks() {
             Object.values(columns).forEach(col => col.innerHTML = '');
-            tasks.filter(t => t.projectId === projectId).forEach(task => {
+
+            // Coerce types and support both snake_case and camelCase keys from different sources
+            const teamTasks = window.tasks.filter(t => {
+                const pid = Number(t.projectId || t.project_id || 0);
+                const tid = String(t.team_id || t.teamId || '');
+                return pid === projectId && tid === String(teamId);
+            });
+
+            if (teamTasks.length === 0) {
+                document.getElementById('todoColumn').innerHTML = '<p class="text-muted text-center py-5">No tasks yet</p>';
+                return;
+            }
+
+            teamTasks.forEach(task => {
                 const card = document.createElement('div');
-                card.className = 'task-card';
+                card.className = 'task-card mb-3 p-3 rounded shadow-sm border border-secondary';
                 card.draggable = true;
                 card.dataset.id = task.id;
                 card.innerHTML = `
-          <h6>${task.title}</h6>
-          <small>${task.assignee} • ${task.due}</small>
+          <h6 class="mb-1 text-white fw-bold">${task.title}</h6>
+          <small class="text-muted">${task.assignee || 'Unassigned'} • Due: ${task.due || 'No date'}</small>
           <div class="mt-2">
-            <span class="badge priority-${task.priority} me-2">${task.priority}</span>
-            <span class="badge status-${task.status}">${task.status.replace('-', ' ')}</span>
+            <span class="badge priority-${task.priority || 'low'} me-2">${(task.priority || 'low').toUpperCase()}</span>
+            <span class="badge status-${task.status || 'todo'}">${(task.status || 'todo').replace('-', ' ')}</span>
           </div>
         `;
-                card.onclick = (e) => { e.stopPropagation(); openTaskDetail(task); };
-                columns[task.status === 'in-progress' ? 'in-progress' : task.status].appendChild(card);
+                card.onclick = (e) => {
+                    e.stopPropagation();
+                    openTaskDetail(task);
+                };
+                // Place in the right column; guard against missing/unknown statuses
+                const statusKey = (task.status === 'in-progress') ? 'in-progress' : (task.status || 'todo');
+                const targetCol = columns[statusKey] || columns.todo;
+                targetCol.appendChild(card);
             });
             setupDragDrop();
         }
 
         function setupDragDrop() {
             document.querySelectorAll('.task-card').forEach(card => {
-                card.addEventListener('dragstart', e => e.dataTransfer.setData('id', card.dataset.id));
+                card.addEventListener('dragstart', e => {
+                    e.dataTransfer.setData('id', card.dataset.id);
+                    card.classList.add('dragging');
+                });
+                card.addEventListener('dragend', () => card.classList.remove('dragging'));
             });
+
             Object.values(columns).forEach(col => {
                 col.addEventListener('dragover', e => e.preventDefault());
-                col.addEventListener('drop', e => {
+                col.addEventListener('drop', async e => {
                     e.preventDefault();
                     const id = e.dataTransfer.getData('id');
-                    const task = tasks.find(t => t.id == id);
-                    const newStatus = col.id.includes('Progress') ? 'in-progress' : col.id.replace('Column', '').toLowerCase();
+                    const task = window.tasks.find(t => t.id == id);
+                    if (!task) return;
+
+                    // Read status from data-status attribute for robust detection
+                    const newStatus = col.dataset.status || 'todo';
+
                     task.status = newStatus;
-                    saveData();
-                    updatePersonalNotifications();
+                    // Persist locally first for immediate responsiveness
+                    try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+                    await syncData();
                     renderTasks();
+                    updatePersonalNotifications();
                 });
             });
         }
 
-        document.getElementById('saveTaskBtn').addEventListener('click', () => {
+        // Save new task
+        document.getElementById('saveTaskBtn').addEventListener('click', async () => {
             const title = document.getElementById('taskTitle').value.trim();
-            if (!title) return;
-            tasks.push({
-                id: Date.now(),
+            const assignee = document.getElementById('taskAssignee').value;
+
+            if (!title) {
+                alert('Task title is required');
+                return;
+            }
+            if (!assignee) {
+                alert('Please assign to a team member');
+                return;
+            }
+
+            const newTask = {
+                id: null,
                 projectId,
                 title,
                 description: document.getElementById('taskDesc').value,
-                assignee: document.getElementById('taskAssignee').value,
+                assignee,
                 priority: document.getElementById('taskPriority').value,
                 due: document.getElementById('taskDue').value,
                 status: 'todo',
+                team_id: teamId,
                 comments: [],
-                files: Array.from(document.getElementById('taskFiles').files).map(f => ({ name: f.name, data: URL.createObjectURL(f) }))
-            });
-            saveData();
+                files: []
+            };
+            // If files were attached, upload them first and use server URLs
+            const fileInput = document.getElementById('taskFiles');
+            const files = Array.from(fileInput.files || []);
+            if (files.length) {
+                const uploaded = await Promise.all(files.map(f => uploadFileToServer(f)));
+                newTask.files = uploaded.filter(Boolean).map(u => ({ name: u.name, data: u.data }));
+            }
+
+            window.tasks.push(newTask);
+            // Persist immediately so new tasks remain when navigating between pages
+            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+            await syncData();
             bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
             renderTasks();
         });
 
+        // Task detail modal
         window.openTaskDetail = (task) => {
             currentTask = task;
             document.getElementById('detailTitle').textContent = task.title;
             document.getElementById('detailDesc').textContent = task.description || 'No description';
-            document.getElementById('detailAssignee').textContent = task.assignee;
-            document.getElementById('detailPriority').textContent = task.priority.toUpperCase();
-            document.getElementById('detailDue').textContent = task.due;
+            document.getElementById('detailAssignee').textContent = task.assignee || 'Unassigned';
+            document.getElementById('detailPriority').textContent = (task.priority || 'low').toUpperCase();
+            document.getElementById('detailDue').textContent = task.due || 'No due date';
             document.getElementById('detailStatus').value = task.status;
 
-            const isManager = localStorage.getItem('role') === 'manager';
+            // Show edit/delete only for manager
+            const isManager = currentUserRole === 'manager';
             document.getElementById('editTaskBtn').style.display = isManager ? 'inline-block' : 'none';
             document.getElementById('deleteTaskBtn').style.display = isManager ? 'inline-block' : 'none';
 
-            document.getElementById('fileList').innerHTML = task.files.length
+            // Files
+            document.getElementById('fileList').innerHTML = task.files?.length > 0
                 ? task.files.map(f => `<li class="list-group-item"><a href="${f.data}" download="${f.name}" class="file-link">${f.name}</a></li>`).join('')
-                : '<li class="list-group-item text-muted">No files</li>';
+                : '<li class="list-group-item text-muted">No files attached</li>';
 
-            document.getElementById('commentList').innerHTML = task.comments.length
+            // Comments
+            document.getElementById('commentList').innerHTML = task.comments?.length > 0
                 ? task.comments.map(c => `<li class="list-group-item"><strong>${c.user}:</strong> ${c.text || ''} ${c.file ? `<a href="${c.file.data}" download="${c.file.name}" class="file-link">[${c.file.name}]</a>` : ''}</li>`).join('')
-                : '<li class="list-group-item text-muted">No comments</li>';
+                : '<li class="list-group-item text-muted">No comments yet</li>';
 
             new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
         };
 
+        // Edit task
         document.getElementById('editTaskBtn').addEventListener('click', () => {
             document.getElementById('editTaskTitle').value = currentTask.title;
             document.getElementById('editTaskDesc').value = currentTask.description || '';
@@ -269,62 +382,160 @@
             new bootstrap.Modal(document.getElementById('editTaskModal')).show();
         });
 
-        document.getElementById('saveEditTaskBtn').addEventListener('click', () => {
-            currentTask.title = document.getElementById('editTaskTitle').value.trim();
-            currentTask.description = document.getElementById('editTaskDesc').value;
-            currentTask.assignee = document.getElementById('editTaskAssignee').value;
-            currentTask.priority = document.getElementById('editTaskPriority').value;
-            currentTask.due = document.getElementById('editTaskDue').value;
-            saveData();
+        document.getElementById('saveEditTaskBtn').addEventListener('click', async () => {
+            // Find the canonical task object in window.tasks and update it
+            let taskRef = window.tasks.find(t => String(t.id) === String(currentTask.id));
+            if (!taskRef) taskRef = currentTask;
+            taskRef.title = document.getElementById('editTaskTitle').value.trim();
+            taskRef.description = document.getElementById('editTaskDesc').value;
+            taskRef.assignee = document.getElementById('editTaskAssignee').value;
+            taskRef.priority = document.getElementById('editTaskPriority').value;
+            taskRef.due = document.getElementById('editTaskDue').value;
+            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+            await syncData();
             bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide();
             renderTasks();
         });
 
-        window.deleteTask = () => {
-            if (confirm("Delete this task permanently?")) {
-                tasks = tasks.filter(t => t.id !== currentTask.id);
-                saveData();
+        // Delete task
+        window.deleteTask = async () => {
+            if (confirm('Delete this task permanently?')) {
+                window.tasks = window.tasks.filter(t => t.id !== currentTask.id);
+                try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+                await syncData();
                 bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
                 renderTasks();
             }
         };
 
-        window.deleteProject = () => {
-            if (confirm("Delete this project and ALL tasks?")) {
-                projects = projects.filter(p => p.id !== projectId);
-                tasks = tasks.filter(t => t.projectId !== projectId);
-                saveData();
-                location.href = 'projects.html';
-            }
+        // Delete project (accepts optional id — used from projects list or detail page)
+        window.deleteProject = async (id) => {
+            const resolvedId = (id !== undefined && id !== null) ? id : projectId;
+            console.debug('[deleteProject] called with id:', id, 'resolvedId:', resolvedId, 'window.projects:', window.projects);
+            if (!resolvedId) { console.warn('[deleteProject] No resolvedId'); return; }
+            if (!confirm('Delete this project and ALL its tasks?')) return;
+
+            // Remove project entries using flexible key checks to tolerate mixed key names/types
+            const beforeProjects = window.projects.length;
+            window.projects = (window.projects || []).filter(p => {
+                const keep = String(p.id) !== String(resolvedId) && String(p.project_id || '') !== String(resolvedId);
+                if (!keep) console.debug('[deleteProject] Removing project:', p);
+                return keep;
+            });
+            const afterProjects = window.projects.length;
+
+            const beforeTasks = window.tasks.length;
+            window.tasks = (window.tasks || []).filter(t => {
+                const keep = String(t.projectId || t.project_id || '') !== String(resolvedId);
+                if (!keep) console.debug('[deleteProject] Removing task:', t);
+                return keep;
+            });
+            const afterTasks = window.tasks.length;
+
+            // persist changes locally
+            try { localStorage.setItem('projects', JSON.stringify(window.projects || [])); } catch (err) { console.warn('Could not persist projects locally', err); }
+            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+
+            // Attempt sync but don't block the UX if offline / teamId missing
+            try { await syncData(); } catch (err) { console.warn('Sync after delete failed', err); }
+
+            console.debug('[deleteProject] Projects before:', beforeProjects, 'after:', afterProjects, 'Tasks before:', beforeTasks, 'after:', afterTasks);
+            // Redirect back to project listing
+            location.href = 'projects.html';
         };
 
-        document.getElementById('detailStatus').addEventListener('change', e => {
+        // Status change
+        document.getElementById('detailStatus').addEventListener('change', async (e) => {
             if (currentTask) {
                 currentTask.status = e.target.value;
-                saveData();
+                try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+                await syncData();
                 renderTasks();
             }
         });
 
-        window.addComment = () => {
+        // Add comment (only append the new comment, not the whole section)
+        window.addComment = async () => {
             const text = document.getElementById('newComment').value.trim();
             const fileInput = document.getElementById('commentFile');
             const file = fileInput.files[0];
-            if (text || file) {
-                const comment = { user: localStorage.getItem('user') || 'User', text, time: new Date().toLocaleString() };
-                if (file) comment.file = { name: file.name, data: URL.createObjectURL(file) };
-                currentTask.comments.push(comment);
-                saveData();
-                document.getElementById('commentList').innerHTML += `<li class="list-group-item"><strong>${comment.user}:</strong> ${comment.text || ''} ${comment.file ? `<a href="${comment.file.data}" download="${comment.file.name}" class="file-link">[${comment.file.name}]</a>` : ''}</li>`;
-                document.getElementById('newComment').value = '';
-                fileInput.value = '';
+
+            if (!text && !file) return;
+
+            const comment = {
+                user: currentUserName,
+                text,
+                time: new Date().toLocaleString()
+            };
+
+            if (file) {
+                // upload comment file to server and use persistent URL
+                const uploaded = await uploadFileToServer(file);
+                if (uploaded) comment.file = { name: uploaded.name || file.name, data: uploaded.data };
             }
+
+            // Ensure we update the canonical task object inside window.tasks
+            let taskRef = null;
+            if (currentTask && currentTask.id !== undefined && currentTask.id !== null) {
+                taskRef = window.tasks.find(t => String(t.id) === String(currentTask.id));
+            }
+            if (!taskRef) taskRef = window.tasks.find(t => t === currentTask) || currentTask;
+
+            if (!taskRef.comments) taskRef.comments = [];
+            taskRef.comments.push(comment);
+
+            // keep currentTask in sync with the authoritative reference
+            currentTask = taskRef;
+
+            // Persist locally first for immediate UX
+            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+
+            // Only append the new comment to the list
+            const listEl = document.getElementById('commentList');
+            const newCommentHtml = `<li class="list-group-item"><strong>${comment.user}:</strong> ${comment.text || ''} ${comment.file ? `<a href="${comment.file.data}" download="${comment.file.name}" class="file-link">[${comment.file.name}]</a>` : ''}</li>`;
+            if (listEl && listEl.children.length && listEl.children[0].classList.contains('text-muted')) {
+                listEl.innerHTML = newCommentHtml;
+            } else {
+                listEl.insertAdjacentHTML('beforeend', newCommentHtml);
+            }
+
+            // Clear inputs immediately for responsiveness
+            document.getElementById('newComment').value = '';
+            fileInput.value = '';
+
+            // Sync with server and then refresh the authoritative task copy to avoid duplicates
+            await syncData();
         };
 
         // Initialize
-        populateAssigneeSelects();
+        populateAssigneeDropdowns();
         renderTasks();
     </script>
+
+    <style>
+        .tasks {
+            min-height: 100px;
+            padding: 8px;
+        }
+
+        .task-card.dragging {
+            opacity: 0.5;
+            background: #333 !important;
+        }
+
+        .kanban-col:hover {
+            background: #252525 !important;
+        }
+
+        .file-link {
+            color: #FF0B55;
+            text-decoration: underline;
+        }
+
+        .file-link:hover {
+            color: #fff;
+        }
+    </style>
 </body>
 
 </html>

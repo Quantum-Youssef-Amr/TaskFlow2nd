@@ -19,8 +19,8 @@
                     required>
                 <button type="submit" class="btn btn-accent w-100 py-3 fw-bold">LOGIN</button>
                 <div class="text-center mt-3">
-    <a href="register.html" class="small login-register-link">Create a New Account</a>
-</div>
+                    <a href="register.html" class="small login-register-link">Create a New Account</a>
+                </div>
             </form>
             <div class="text-center mt-4 small text-muted">
                 <p>Demo Accounts:</p>
@@ -30,29 +30,52 @@
             </div>
         </div>
     </div>
-   
+
 
     <script src="assets/js/main.js"></script>
     <script>
-        document.getElementById('loginForm').addEventListener('submit', e => {
+        document.getElementById('loginForm').addEventListener('submit', async e => {
             e.preventDefault();
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
-            // Load all users
-            const users = JSON.parse(localStorage.getItem('appUsers')) || [
-                { name: "Admin Manager", email: "manager@taskflow.com", password: "123456", role: "manager" },
-                { name: "John Doe", email: "user@taskflow.com", password: "123456", role: "member" }
-            ];
+            const res = await fetch('http://localhost:5000/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
 
-            const user = users.find(u => u.email === email && u.password === password);
+            const data = await res.json();
 
-            if (user) {
-                localStorage.setItem('role', user.role);
-                localStorage.setItem('user', user.name);
+            if (data.success) {
+                // Save user info
+                localStorage.setItem('user', data.user.name);
+                localStorage.setItem('role', data.user.role);
+                localStorage.setItem('teamId', data.user.teamId);
+
+                // Save team data if manager
+                if (data.data) {
+                    // Use centralized loader if available to keep behavior consistent
+                    if (typeof loadTeamData === 'function') {
+                        loadTeamData({ projects: data.data.projects || [], tasks: data.data.tasks || [], users: data.data.users || [], team: data.data.team || null, userRole: data.user.role, currentUser: data.user.name });
+                    } else {
+                        window.projects = data.data.projects || [];
+                        window.tasks = data.data.tasks || [];
+                        window.appUsers = data.data.users || [];
+                        window.teamId = data.user.teamId;
+                        // persist to localStorage so other pages can read after navigation
+                        localStorage.setItem('projects', JSON.stringify(window.projects));
+                        localStorage.setItem('tasks', JSON.stringify(window.tasks));
+                        localStorage.setItem('teamUsers', JSON.stringify(window.appUsers));
+                        if (data.data.team) {
+                            localStorage.setItem('teamName', data.data.team.name || 'My Team');
+                        }
+                    }
+                }
+
                 location.href = 'dashboard.html';
             } else {
-                alert('Invalid email or password');
+                alert(data.message || 'Login failed');
             }
         });
     </script>

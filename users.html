@@ -11,47 +11,20 @@
 
 <body>
     <div class="container mt-5 pt-4">
-        <h1 class="mb-4">User Management</h1>
+        <h1 class="mb-4">Team Members</h1>
 
         <!-- Access Denied for non-managers -->
         <div id="accessDenied" class="text-center py-5" style="display:none;">
             <h3 class="text-danger">Access Denied</h3>
-            <p>Only managers can manage users.</p>
+            <p>Only managers can view team members.</p>
             <a href="dashboard.html" class="btn btn-accent">Back to Dashboard</a>
         </div>
 
-        <!-- Main Content (Manager Only) -->
-        <div id="userManagement">
-            <div class="card shadow mb-4">
-                <div class="card-body">
-                    <h5 class="mb-4">Create New User</h5>
-                    <form id="createUserForm" class="row g-3">
-                        <div class="col-md-6">
-                            <input type="text" id="newName" class="form-control" placeholder="Full Name (optional)">
-                        </div>
-                        <div class="col-md-6">
-                            <input type="email" id="newEmail" class="form-control" placeholder="Email" required>
-                        </div>
-                        <div class="col-md-6">
-                            <input type="password" id="newPassword" class="form-control" placeholder="Password" required
-                                minlength="6">
-                        </div>
-                        <div class="col-md-6">
-                            <select id="newRole" class="form-select">
-                                <option value="member">Team Member</option>
-                                <option value="manager">Manager</option>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-accent">Create User</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
+        <!-- Main Content -->
+        <div id="usersContent">
             <div class="card shadow">
                 <div class="card-body">
-                    <h5>All Users</h5>
+                    <h5>All Team Members</h5>
                     <div class="table-responsive">
                         <table class="table table-dark table-hover">
                             <thead>
@@ -59,10 +32,13 @@
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Role</th>
-                                    <th>Actions</th>
+                                    <th>Team ID</th>
+                                    <th>Team Name</th>
                                 </tr>
                             </thead>
-                            <tbody id="usersTable"></tbody>
+                            <tbody id="usersTable">
+                                <!-- Filled by JavaScript -->
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -73,70 +49,43 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/main.js"></script>
     <script>
-        // Load users from localStorage
-        let users = JSON.parse(localStorage.getItem('appUsers')) || [
-            { name: "Admin Manager", email: "manager@taskflow.com", password: "123456", role: "manager" },
-            { name: "Alex Johnson", email: "alex@taskflow.com", password: "123456", role: "member" },
-            { name: "Mike Chen", email: "mike@taskflow.com", password: "123456", role: "member" },
-            { name: "Lisa Park", email: "lisa@taskflow.com", password: "123456", role: "member" },
-            { name: "Tom Wilson", email: "tom@taskflow.com", password: "123456", role: "member" }
-        ];
-
-        function saveUsers() {
-            localStorage.setItem('appUsers', JSON.stringify(users));
-        }
-
-        function renderUsers() {
-            const tbody = document.getElementById('usersTable');
-            tbody.innerHTML = users.map((u, i) => `
-        <tr>
-          <td>${u.name}</td>
-          <td>${u.email}</td>
-          <td><span class="badge ${u.role === 'manager' ? 'bg-danger' : 'bg-secondary'}">${u.role.toUpperCase()}</span></td>
-          <td>
-            ${i > 0 ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${i})">Delete</button>` : '<small class="text-muted">Default</small>'}
-          </td>
-        </tr>
-      `).join('');
-        }
-
-        window.deleteUser = (index) => {
-            if (confirm('Delete this user permanently?')) {
-                users.splice(index, 1);
-                saveUsers();
-                renderUsers();
-            }
-        };
-
-        document.getElementById('createUserForm').addEventListener('submit', e => {
-            e.preventDefault();
-            const email = document.getElementById('newEmail').value.trim();
-            const password = document.getElementById('newPassword').value;
-
-            if (users.some(u => u.email === email)) {
-                alert('This email is already registered!');
-                return;
-            }
-
-            users.push({
-                name: document.getElementById('newName').value.trim() || email.split('@')[0],
-                email,
-                password,
-                role: document.getElementById('newRole').value
-            });
-
-            saveUsers();
-            renderUsers();
-            e.target.reset();
-            alert('User created successfully!');
-        });
-
-        // Check if user is manager
+        // Check if manager
         if (localStorage.getItem('role') !== 'manager') {
-            document.getElementById('userManagement').style.display = 'none';
+            document.getElementById('usersContent').style.display = 'none';
             document.getElementById('accessDenied').style.display = 'block';
         } else {
-            renderUsers();
+            // Get data from login response
+            const teamId = localStorage.getItem('teamId');
+            const teamName = localStorage.getItem('teamName') || 'My Team';
+            const users = JSON.parse(localStorage.getItem('teamUsers') || '[]');
+
+            // Render table
+            const tbody = document.getElementById('usersTable');
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No team members yet</td></tr>';
+            } else {
+                tbody.innerHTML = users.map(u => `
+          <tr>
+            <td><strong>${u.name}</strong></td>
+            <td>${u.email}</td>
+            <td>
+              <span class="badge ${u.role === 'manager' ? 'bg-danger' : 'bg-secondary'}">
+                ${u.role.toUpperCase()}
+              </span>
+            </td>
+            <td><strong class="text-accent">#${teamId}</strong></td>
+            <td>${teamName}</td>
+          </tr>
+        `).join('');
+            }
+
+            // Optional: Show team info at top
+            document.querySelector('h1').insertAdjacentHTML('afterend',
+                `<div class="alert alert-info mb-4">
+          <strong>Team ID:</strong> <span class="text-accent">#${teamId}</span> | 
+          <strong>Team Name:</strong> ${teamName}
+        </div>`
+            );
         }
     </script>
 </body>

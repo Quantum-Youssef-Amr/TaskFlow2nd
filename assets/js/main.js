@@ -1,70 +1,189 @@
-// GLOBAL DATA
-window.projects = JSON.parse(localStorage.getItem('projects')) || [
-  { id: 1, name: "Website Redesign", description: "Modern UI/UX" },
-  { id: 2, name: "Mobile App v2", description: "New features" }
-];
-
-window.tasks = JSON.parse(localStorage.getItem('tasks')) || [
-  { id: 1, projectId: 1, title: "Design Homepage", description: "Figma mockups", assignee: "Alex Johnson", priority: "high", due: "2025-12-05", status: "todo", comments: [], files: [] },
-  { id: 2, projectId: 1, title: "Fix Login Bug", description: "API issue", assignee: "Mike Chen", priority: "critical", due: "2025-12-04", status: "in-progress", comments: [], files: [] }
-];
-
-window.appUsers = JSON.parse(localStorage.getItem('appUsers')) || [
-  { name: "Admin Manager", email: "manager@taskflow.com", password: "123456", role: "manager" },
-  { name: "Alex Johnson", email: "alex@taskflow.com", password: "123456", role: "member" },
-  { name: "Mike Chen", email: "mike@taskflow.com", password: "123456", role: "member" },
-  { name: "Lisa Park", email: "lisa@taskflow.com", password: "123456", role: "member" },
-  { name: "Tom Wilson", email: "tom@taskflow.com", password: "123456", role: "member" }
-];
-
-function saveData() {
-  localStorage.setItem('projects', JSON.stringify(window.projects));
-  localStorage.setItem('tasks', JSON.stringify(window.tasks));
-  localStorage.setItem('appUsers', JSON.stringify(window.appUsers));
+// GLOBAL DATA — LOADED FROM BACKEND ON LOGIN
+window.projects = [];
+window.tasks = [];
+window.appUsers = [];
+// Try to initialize from localStorage so pages that don't load data from backend still behave
+window.teamId = localStorage.getItem('teamId') || null;
+window.userRole = localStorage.getItem('role') || null;
+window.currentUser = localStorage.getItem('user') || null;
+// Load persisted lists from localStorage if available
+try {
+  const storedProjects = localStorage.getItem('projects');
+  const storedTasks = localStorage.getItem('tasks');
+  const storedUsers = localStorage.getItem('teamUsers');
+  if (storedProjects) window.projects = JSON.parse(storedProjects);
+  if (storedTasks) window.tasks = JSON.parse(storedTasks);
+  if (storedUsers) window.appUsers = JSON.parse(storedUsers);
+} catch (err) {
+  console.warn('Failed to parse stored data', err);
 }
 
-// PERSONAL NOTIFICATIONS — ONLY YOUR OVERDUE TASKS
+// Normalize keys from different data sources (dummy data, DB, localStorage)
+function normalizeLocalData() {
+  const normalizeString = v => (v === undefined || v === null) ? v : v;
+
+  window.projects = (window.projects || []).map(p => {
+    const proj = Object.assign({}, p);
+    if (!proj.description && proj.desc) proj.description = proj.desc;
+    if (!proj.team_id && proj.teamId) proj.team_id = proj.teamId;
+    return proj;
+  });
+
+  window.tasks = (window.tasks || []).map(t => {
+    const task = Object.assign({}, t);
+    if (!task.description && task.desc) task.description = task.desc;
+    // support both camelCase and snake_case coming from different sources
+    if (!task.projectId && task.project_id) task.projectId = task.project_id;
+    if (!task.team_id && task.teamId) task.team_id = task.teamId;
+    return task;
+  });
+
+  window.appUsers = (window.appUsers || []).map(u => {
+    const user = Object.assign({}, u);
+    if (!user.team_id && user.teamId) user.team_id = user.teamId;
+    return user;
+  });
+
+  try {
+    localStorage.setItem('projects', JSON.stringify(window.projects || []));
+    localStorage.setItem('tasks', JSON.stringify(window.tasks || []));
+    localStorage.setItem('teamUsers', JSON.stringify(window.appUsers || []));
+  } catch (err) {
+    // ignore
+  }
+}
+
+// Run normalization early so pages can rely on stable keys
+normalizeLocalData();
+
+// LOAD DATA FROM LOGIN RESPONSE (CRITICAL FIX!)
+function loadTeamData(data) {
+  if (data.projects) window.projects = (data.projects || []).map(p => ({
+    ...p,
+    description: p.description || p.desc || '',
+    team_id: p.team_id || p.teamId || null
+  }));
+  if (data.tasks) window.tasks = (data.tasks || []).map(t => ({
+    ...t,
+    description: t.description || t.desc || '',
+    projectId: t.projectId || t.project_id || null,
+    team_id: t.team_id || t.teamId || null
+  }));
+  if (data.users) window.appUsers = (data.users || []).map(u => ({
+    ...u,
+    team_id: u.team_id || u.teamId || null
+  }));
+  if (data.team) {
+    window.teamId = data.team.id;
+    localStorage.setItem('teamId', data.team.id);
+  }
+  // If login supplied a role or current user, keep local state consistent
+  if (data.userRole) {
+    window.userRole = data.userRole;
+    localStorage.setItem('role', data.userRole);
+  }
+  if (data.currentUser) {
+    window.currentUser = data.currentUser;
+    localStorage.setItem('user', data.currentUser);
+  }
+  // Persist lists for other pages
+  try {
+    localStorage.setItem('projects', JSON.stringify(window.projects || []));
+    localStorage.setItem('tasks', JSON.stringify(window.tasks || []));
+    localStorage.setItem('teamUsers', JSON.stringify(window.appUsers || []));
+    if (data.team && data.team.name) localStorage.setItem('teamName', data.team.name);
+  } catch (err) {
+    console.warn('Failed to persist team data', err);
+  }
+}
+
+// PERSONAL SYNC — NOW SAFE
+async function syncData() {
+  if (!window.teamId) return;
+  try {
+    // Only sync current team’s projects/tasks
+    const teamProjects = (window.projects || []).filter(p => String(p.team_id) === String(window.teamId));
+    const teamTasks = (window.tasks || []).filter(t => String(t.team_id) === String(window.teamId));
+
+    // Preserve local-only fields (like comments) by capturing them before sync
+    const localCommentsMap = {};
+    teamTasks.forEach(t => {
+      const key = String(t.id === undefined ? '' : t.id);
+      if (Array.isArray(t.comments) && t.comments.length) localCommentsMap[key] = (t.comments || []).slice();
+    });
+
+    const res = await fetch('http://localhost:5000/api/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'team-id': window.teamId
+      },
+      body: JSON.stringify({
+        projects: teamProjects,
+        tasks: teamTasks
+      })
+    });
+
+    // If server returned canonical lists, merge/apply them to local state and persist
+    const data = await res.json().catch(() => null);
+    if (data && data.success) {
+      if (Array.isArray(data.projects)) {
+        window.projects = data.projects;
+        try { localStorage.setItem('projects', JSON.stringify(window.projects)); } catch (err) {}
+      }
+      if (Array.isArray(data.tasks)) {
+        window.tasks = (data.tasks || []).map(t => {
+          const task = Object.assign({}, t);
+          const key = String(task.id === undefined ? '' : task.id);
+          if (!Array.isArray(task.comments)) task.comments = [];
+          if (localCommentsMap[key] && localCommentsMap[key].length) {
+            task.comments = task.comments.concat(localCommentsMap[key]);
+          }
+          return task;
+        });
+        try { localStorage.setItem('tasks', JSON.stringify(window.tasks)); } catch (err) {}
+      }
+    }
+  } catch (err) {
+    console.warn('Sync failed (offline?)', err);
+  }
+}
+
+// PERSONAL NOTIFICATIONS
 function updatePersonalNotifications() {
-  const currentUserName = localStorage.getItem('user') || 'User';
-  const overdueTasks = window.tasks.filter(t => 
-    t.assignee === currentUserName && 
-    new Date(t.due) < new Date() && 
-    t.status !== 'done'
+  if (!window.currentUser || !Array.isArray(window.tasks)) return;
+
+  const normalize = s => (s || '').toString().trim().toLowerCase();
+
+  const overdue = window.tasks.filter(t =>
+    normalize(t.assignee) === normalize(window.currentUser) &&
+    t.due && new Date(t.due) < new Date() &&
+    (t.status || '').toLowerCase() !== 'done'
   );
 
   const badge = document.getElementById('notifBadge');
   const dropdown = document.getElementById('notifDropdown');
-
-  if (badge) badge.textContent = overdueTasks.length || '0';
+  if (badge) badge.textContent = overdue.length || '0';
   if (dropdown) {
-    if (overdueTasks.length > 0) {
-      dropdown.innerHTML = overdueTasks.map(t => `
-        <li><a class="dropdown-item text-danger small" href="project-detail.html?id=${t.projectId}">
-          "${t.title}" is overdue! (Due: ${t.due})
-        </a></li>
-      `).join('');
-    } else {
-      dropdown.innerHTML = '<li><a class="dropdown-item text-muted">No overdue tasks</a></li>';
-    }
+    dropdown.innerHTML = overdue.length > 0
+      ? overdue.map(t => `<li><a class="dropdown-item text-danger small" href="project-detail.html?id=${t.projectId}">${t.title} overdue!</a></li>`).join('')
+      : '<li><a class="dropdown-item text-muted">No overdue tasks</a></li>';
   }
 }
 
-// NAVBAR WITH PERSONAL NOTIFICATIONS
+// NAVBAR — INJECTED ON ALL PAGES
 const navbarHTML = `
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
   <div class="container-fluid">
     <a class="navbar-brand fw-bold fs-4" href="dashboard.html">TaskFlow</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="collapse navbar-collapse" id="navbarNav">
+    <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
         <li class="nav-item"><a class="nav-link" href="dashboard.html">Dashboard</a></li>
         <li class="nav-item"><a class="nav-link" href="projects.html">Projects</a></li>
-        ${localStorage.getItem('role') === 'manager' ? `
-          <li class="nav-item"><a class="nav-link" href="reports.html">Reports</a></li>
-          <li class="nav-item"><a class="nav-link" href="users.html">Users</a></li>
-        ` : ''}
+        ${window.userRole === 'manager' ? '<li class="nav-item"><a class="nav-link" href="reports.html">Reports</a></li><li class="nav-item"><a class="nav-link" href="users.html">Users</a></li>' : ''}
       </ul>
       <ul class="navbar-nav">
         <li class="nav-item dropdown">
@@ -81,15 +200,9 @@ const navbarHTML = `
 <div style="height: 80px;"></div>
 `;
 
-// Inject navbar + update notifications
-if (!location.pathname.includes('login.html') && !location.pathname.includes('index.html')) {
+// Inject navbar on all pages except login/register
+if (!location.pathname.includes('login.html') && !location.pathname.includes('register.html') && !location.pathname.includes('index.html')) {
   document.body.insertAdjacentHTML('afterbegin', navbarHTML);
-  setTimeout(() => {
-    updatePersonalNotifications();
-    setInterval(updatePersonalNotifications, 10000); // Refresh every 10s
-  }, 300);
+  setTimeout(updatePersonalNotifications, 500);
+  setInterval(updatePersonalNotifications, 10000);
 }
-
-// Export for other pages
-window.updatePersonalNotifications = updatePersonalNotifications;
-window.saveData = saveData;
