@@ -1,0 +1,137 @@
+:root {
+    --bg: #111;
+    --text: #fff;
+    --accent: #FF0B55;
+    --card-bg: #1a1a1a;
+    --border: #333;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.btn-accent {
+    background: var(--accent) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600;
+}
+
+.btn-accent:hover {
+    background: #e00045 !important;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(255, 11, 85, 0.4);
+}
+.login-register-link {
+    color: #0d6efd !important;
+    font-weight: 500;
+    text-decoration: none;
+    transition: 0.2s ease;
+}
+
+.login-register-link:hover {
+    color: #0b5ed7 !important;
+    text-decoration: underline;
+}
+
+.card {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border) !important;
+    color: white;
+}
+
+.form-control,
+.form-select {
+    background: #222 !important;
+    border: 1px solid #444 !important;
+    color: white !important;
+}
+
+.form-control:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 0.25rem rgba(255, 11, 85, 0.3) !important;
+}
+
+.navbar {
+    background: #0a0a0a !important;
+    border-bottom: 1px solid var(--border);
+}
+
+.navbar .nav-link,
+.navbar-brand {
+    color: white !important;
+}
+
+.badge-accent {
+    background: var(--accent) !important;
+}
+
+.task-card {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    cursor: grab;
+    transition: all 0.3s;
+}
+
+.task-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(255, 11, 85, 0.2);
+}
+
+.priority-critical {
+    background: #ff0b55;
+    color: white;
+}
+
+.priority-high {
+    background: #ff4444;
+    color: white;
+}
+
+.priority-medium {
+    background: #ff8800;
+    color: white;
+}
+
+.priority-low {
+    background: #666;
+    color: white;
+}
+
+.status-todo {
+    background: #444;
+    color: #ccc;
+}
+
+.status-in-progress {
+    background: #ff8800;
+    color: white;
+}
+
+.status-done {
+    background: #00c853;
+    color: white;
+}
+
+.kanban-col {
+    background: #1e1e1e;
+    border-radius: 16px;
+    padding: 1.5rem;
+    min-height: 500px;
+}
+
+.file-link {
+    color: #FF0B55;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.file-link:hover {
+    color: #fff;
+}

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project - TaskFlow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+    <div class="container mt-5 pt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 id="projectTitle">Loading...</h1>
+            <div>
+                <button class="btn btn-accent me-2" data-bs-toggle="modal" data-bs-target="#taskModal">+ Add
+                    Task</button>
+                <button id="deleteProjectBtn" class="btn btn-danger" style="display:none;"
+                    onclick="deleteProject()">Delete Project</button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="kanban-col">
+                    <h5 class="text-accent">To Do</h5>
+                    <div id="todoColumn" class="tasks"></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kanban-col">
+                    <h5 class="text-warning">In Progress</h5>
+                    <div id="inProgressColumn" class="tasks"></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kanban-col">
+                    <h5 class="text-success">Done</h5>
+                    <div id="doneColumn" class="tasks"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal fade" id="taskModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5>Add Task</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="taskTitle" class="form-control mb-3" placeholder="Title">
+                    <textarea id="taskDesc" class="form-control mb-3" placeholder="Description"></textarea>
+                    <select id="taskAssignee" class="form-select mb-3">
+                        <!-- Filled dynamically -->
+                    </select>
+                    <select id="taskPriority" class="form-select mb-3">
+                        <option>low</option>
+                        <option>medium</option>
+                        <option>high</option>
+                        <option>critical</option>
+                    </select>
+                    <input type="date" id="taskDue" class="form-control mb-3">
+                    <input type="file" id="taskFiles" class="form-control" multiple>
+                </div>
+                <div class="modal-footer">
+                    <button id="saveTaskBtn" class="btn btn-accent">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div class="modal fade" id="editTaskModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5>Edit Task</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="editTaskTitle" class="form-control mb-3">
+                    <textarea id="editTaskDesc" class="form-control mb-3"></textarea>
+                    <select id="editTaskAssignee" class="form-select mb-3">
+                        <!-- Filled dynamically -->
+                    </select>
+                    <select id="editTaskPriority" class="form-select mb-3">
+                        <option>low</option>
+                        <option>medium</option>
+                        <option>high</option>
+                        <option>critical</option>
+                    </select>
+                    <input type="date" id="editTaskDue" class="form-control mb-3">
+                </div>
+                <div class="modal-footer">
+                    <button id="saveEditTaskBtn" class="btn btn-accent">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Detail Modal -->
+    <div class="modal fade" id="taskDetailModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header d-flex justify-content-between">
+                    <h5 id="detailTitle"></h5>
+                    <div>
+                        <button id="editTaskBtn" class="btn btn-warning btn-sm me-2" style="display:none;">Edit</button>
+                        <button id="deleteTaskBtn" class="btn btn-danger btn-sm" style="display:none;"
+                            onclick="deleteTask()">Delete</button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Description:</strong> <span id="detailDesc"></span></p>
+                    <p><strong>Assignee:</strong> <span id="detailAssignee"></span> | <strong>Priority:</strong> <span
+                            id="detailPriority"></span> | <strong>Due:</strong> <span id="detailDue"></span></p>
+                    <p><strong>Status:</strong>
+                        <select id="detailStatus" class="form-select w-auto d-inline">
+                            <option value="todo">To Do</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </p>
+                    <hr>
+                    <h6>Attached Files</h6>
+                    <ul id="fileList" class="list-group mb-3"></ul>
+                    <hr>
+                    <h6>Comments</h6>
+                    <ul id="commentList" class="list-group mb-3"></ul>
+                    <div class="input-group">
+                        <input type="text" id="newComment" class="form-control" placeholder="Add comment...">
+                        <input type="file" id="commentFile" class="form-control">
+                        <button class="btn btn-accent" onclick="addComment()">Post</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const projectId = parseInt(params.get('id'));
+        const project = projects.find(p => p.id === projectId);
+        if (project) document.getElementById('projectTitle').textContent = project.name;
+
+        if (localStorage.getItem('role') === 'manager') {
+            document.getElementById('deleteProjectBtn').style.display = 'inline-block';
+        }
+
+        const columns = {
+            todo: document.getElementById('todoColumn'),
+            'in-progress': document.getElementById('inProgressColumn'),
+            done: document.getElementById('doneColumn')
+        };
+
+        let currentTask = null;
+
+        // Load real users
+        const appUsers = JSON.parse(localStorage.getItem('appUsers')) || [
+            { name: "Alex Johnson", email: "alex@taskflow.com" },
+            { name: "Mike Chen", email: "mike@taskflow.com" },
+            { name: "Lisa Park", email: "lisa@taskflow.com" },
+            { name: "Tom Wilson", email: "tom@taskflow.com" }
+        ];
+
+        function populateAssigneeSelects() {
+            const select1 = document.getElementById('taskAssignee');
+            const select2 = document.getElementById('editTaskAssignee');
+            [select1, select2].forEach(sel => {
+                sel.innerHTML = appUsers.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+            });
+        }
+
+        function renderTasks() {
+            Object.values(columns).forEach(col => col.innerHTML = '');
+            tasks.filter(t => t.projectId === projectId).forEach(task => {
+                const card = document.createElement('div');
+                card.className = 'task-card';
+                card.draggable = true;
+                card.dataset.id = task.id;
+                card.innerHTML = `
+          <h6>${task.title}</h6>
+          <small>${task.assignee} • ${task.due}</small>
+          <div class="mt-2">
+            <span class="badge priority-${task.priority} me-2">${task.priority}</span>
+            <span class="badge status-${task.status}">${task.status.replace('-', ' ')}</span>
+          </div>
+        `;
+                card.onclick = (e) => { e.stopPropagation(); openTaskDetail(task); };
+                columns[task.status === 'in-progress' ? 'in-progress' : task.status].appendChild(card);
+            });
+            setupDragDrop();
+        }
+
+        function setupDragDrop() {
+            document.querySelectorAll('.task-card').forEach(card => {
+                card.addEventListener('dragstart', e => e.dataTransfer.setData('id', card.dataset.id));
+            });
+            Object.values(columns).forEach(col => {
+                col.addEventListener('dragover', e => e.preventDefault());
+                col.addEventListener('drop', e => {
+                    e.preventDefault();
+                    const id = e.dataTransfer.getData('id');
+                    const task = tasks.find(t => t.id == id);
+                    const newStatus = col.id.includes('Progress') ? 'in-progress' : col.id.replace('Column', '').toLowerCase();
+                    task.status = newStatus;
+                    saveData();
+                    updatePersonalNotifications();
+                    renderTasks();
+                });
+            });
+        }
+
+        document.getElementById('saveTaskBtn').addEventListener('click', () => {
+            const title = document.getElementById('taskTitle').value.trim();
+            if (!title) return;
+            tasks.push({
+                id: Date.now(),
+                projectId,
+                title,
+                description: document.getElementById('taskDesc').value,
+                assignee: document.getElementById('taskAssignee').value,
+                priority: document.getElementById('taskPriority').value,
+                due: document.getElementById('taskDue').value,
+                status: 'todo',
+                comments: [],
+                files: Array.from(document.getElementById('taskFiles').files).map(f => ({ name: f.name, data: URL.createObjectURL(f) }))
+            });
+            saveData();
+            bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
+            renderTasks();
+        });
+
+        window.openTaskDetail = (task) => {
+            currentTask = task;
+            document.getElementById('detailTitle').textContent = task.title;
+            document.getElementById('detailDesc').textContent = task.description || 'No description';
+            document.getElementById('detailAssignee').textContent = task.assignee;
+            document.getElementById('detailPriority').textContent = task.priority.toUpperCase();
+            document.getElementById('detailDue').textContent = task.due;
+            document.getElementById('detailStatus').value = task.status;
+
+            const isManager = localStorage.getItem('role') === 'manager';
+            document.getElementById('editTaskBtn').style.display = isManager ? 'inline-block' : 'none';
+            document.getElementById('deleteTaskBtn').style.display = isManager ? 'inline-block' : 'none';
+
+            document.getElementById('fileList').innerHTML = task.files.length
+                ? task.files.map(f => `<li class="list-group-item"><a href="${f.data}" download="${f.name}" class="file-link">${f.name}</a></li>`).join('')
+                : '<li class="list-group-item text-muted">No files</li>';
+
+            document.getElementById('commentList').innerHTML = task.comments.length
+                ? task.comments.map(c => `<li class="list-group-item"><strong>${c.user}:</strong> ${c.text || ''} ${c.file ? `<a href="${c.file.data}" download="${c.file.name}" class="file-link">[${c.file.name}]</a>` : ''}</li>`).join('')
+                : '<li class="list-group-item text-muted">No comments</li>';
+
+            new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
+        };
+
+        document.getElementById('editTaskBtn').addEventListener('click', () => {
+            document.getElementById('editTaskTitle').value = currentTask.title;
+            document.getElementById('editTaskDesc').value = currentTask.description || '';
+            document.getElementById('editTaskAssignee').value = currentTask.assignee;
+            document.getElementById('editTaskPriority').value = currentTask.priority;
+            document.getElementById('editTaskDue').value = currentTask.due;
+            bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
+            new bootstrap.Modal(document.getElementById('editTaskModal')).show();
+        });
+
+        document.getElementById('saveEditTaskBtn').addEventListener('click', () => {
+            currentTask.title = document.getElementById('editTaskTitle').value.trim();
+            currentTask.description = document.getElementById('editTaskDesc').value;
+            currentTask.assignee = document.getElementById('editTaskAssignee').value;
+            currentTask.priority = document.getElementById('editTaskPriority').value;
+            currentTask.due = document.getElementById('editTaskDue').value;
+            saveData();
+            bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide();
+            renderTasks();
+        });
+
+        window.deleteTask = () => {
+            if (confirm("Delete this task permanently?")) {
+                tasks = tasks.filter(t => t.id !== currentTask.id);
+                saveData();
+                bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
+                renderTasks();
+            }
+        };
+
+        window.deleteProject = () => {
+            if (confirm("Delete this project and ALL tasks?")) {
+                projects = projects.filter(p => p.id !== projectId);
+                tasks = tasks.filter(t => t.projectId !== projectId);
+                saveData();
+                location.href = 'projects.html';
+            }
+        };
+
+        document.getElementById('detailStatus').addEventListener('change', e => {
+            if (currentTask) {
+                currentTask.status = e.target.value;
+                saveData();
+                renderTasks();
+            }
+        });
+
+        window.addComment = () => {
+            const text = document.getElementById('newComment').value.trim();
+            const fileInput = document.getElementById('commentFile');
+            const file = fileInput.files[0];
+            if (text || file) {
+                const comment = { user: localStorage.getItem('user') || 'User', text, time: new Date().toLocaleString() };
+                if (file) comment.file = { name: file.name, data: URL.createObjectURL(file) };
+                currentTask.comments.push(comment);
+                saveData();
+                document.getElementById('commentList').innerHTML += `<li class="list-group-item"><strong>${comment.user}:</strong> ${comment.text || ''} ${comment.file ? `<a href="${comment.file.data}" download="${comment.file.name}" class="file-link">[${comment.file.name}]</a>` : ''}</li>`;
+                document.getElementById('newComment').value = '';
+                fileInput.value = '';
+            }
+        };
+
+        // Initialize
+        populateAssigneeSelects();
+        renderTasks();
+    </script>
+</body>
+
+</html>
