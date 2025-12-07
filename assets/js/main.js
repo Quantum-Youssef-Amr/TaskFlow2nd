@@ -128,16 +128,23 @@ async function syncData() {
     const data = await res.json().catch(() => null);
     if (data && data.success) {
       if (Array.isArray(data.projects)) {
+        // Always use canonical server list, overwriting local
         window.projects = data.projects;
         try { localStorage.setItem('projects', JSON.stringify(window.projects)); } catch (err) {}
       }
       if (Array.isArray(data.tasks)) {
+        // Always use canonical server list, overwriting local
         window.tasks = (data.tasks || []).map(t => {
           const task = Object.assign({}, t);
-          const key = String(task.id === undefined ? '' : task.id);
-          if (!Array.isArray(task.comments)) task.comments = [];
-          if (localCommentsMap[key] && localCommentsMap[key].length) {
-            task.comments = task.comments.concat(localCommentsMap[key]);
+          // Deduplicate comments by user+text+time
+          if (Array.isArray(task.comments)) {
+            const seen = new Set();
+            task.comments = task.comments.filter(c => {
+              const key = `${c.user}|${c.text}|${c.time}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
           }
           return task;
         });

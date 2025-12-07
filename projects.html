@@ -59,59 +59,34 @@
         // Get user data
         const role = localStorage.getItem('role') || 'member';
         const teamId = localStorage.getItem('teamId');
-        console.log(window.projects)
-
-        // Hide "New Project" button for members
-        if (role !== 'manager') {
-            document.getElementById('newProjectBtn').style.display = 'none';
-        }
-
-        // Render projects for current team only
+        if (role !== 'manager') document.getElementById('newProjectBtn').style.display = 'none';
         function renderProjects() {
             const list = document.getElementById('projectList');
             const teamProjects = window.projects.filter(p => String(p.team_id) === String(teamId));
-
             if (teamProjects.length === 0) {
-                list.innerHTML = `
-          <div class="col-12 text-center py-5">
-            <h4 class="text-muted">No projects yet</h4>
-            <p class="text-light">Create your first project to get started!</p>
-          </div>
-        `;
+                list.innerHTML = `<div class="col-12 text-center py-5"><h4 class="text-muted">No projects yet</h4><p class="text-light">Create your first project to get started!</p></div>`;
                 return;
             }
-
             list.innerHTML = teamProjects.map(p => `
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="card h-100 shadow-lg border-0 hover-lift">
-            <div class="card-body d-flex flex-column">
-              <h5 class="card-title text-white fw-bold">${p.name}</h5>
-              <p class="card-text text-light flex-grow-1 small">${p.description || 'No description'}</p>
-              <div class="mt-auto">
-                <a href="project-detail.html?id=${p.id}" class="btn btn-accent btn-sm me-2">
-                  Open Project
-                </a>
-                ${role === 'manager' ? `
-                  <button class="btn btn-warning btn-sm me-2" onclick="editProject(${p.id})">
-                    Edit
-                  </button>
-                  <button class="btn btn-danger btn-sm" onclick="deleteProject(${p.id})">
-                    Delete
-                  </button>
-                ` : ''}
-              </div>
-            </div>
-          </div>
-        </div>
-      `).join('');
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-lg border-0 hover-lift">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title text-white fw-bold">${p.name}</h5>
+                            <p class="card-text text-light flex-grow-1 small">${p.description || 'No description'}</p>
+                            <div class="mt-auto">
+                                <a href="project-detail.html?id=${p.id}" class="btn btn-accent btn-sm me-2">Open Project</a>
+                                ${role === 'manager' ? `<button class="btn btn-warning btn-sm me-2" onclick="editProject(${p.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteProject(${p.id})">Delete</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
 
         // Edit project
         window.editProject = (id) => {
-            // Find the canonical project object in window.projects and update modal
             const project = window.projects.find(p => String(p.id) === String(id));
             if (!project) return;
-
             document.getElementById('projectModalTitle').textContent = 'Edit Project';
             document.getElementById('editProjectId').value = project.id;
             document.getElementById('projectName').value = project.name;
@@ -121,32 +96,14 @@
 
         // Delete project
         window.deleteProject = async (id) => {
-            if (!id) { console.warn('[deleteProject] No id provided'); return; }
-            if (!confirm('Delete this project and all its tasks? This cannot be undone.')) return;
-
-            const resolvedId = id;
-            const beforeProjects = window.projects.length;
-            window.projects = (window.projects || []).filter(p => {
-                const keep = String(p.id) !== String(resolvedId) && String(p.project_id || '') !== String(resolvedId);
-                if (!keep) console.debug('[deleteProject] Removing project:', p);
-                return keep;
-            });
-            const afterProjects = window.projects.length;
-
-            const beforeTasks = window.tasks.length;
-            window.tasks = (window.tasks || []).filter(t => {
-                const keep = String(t.projectId || t.project_id || '') !== String(resolvedId);
-                if (!keep) console.debug('[deleteProject] Removing task:', t);
-                return keep;
-            });
-            const afterTasks = window.tasks.length;
-
-            // persist changes
-            try { localStorage.setItem('projects', JSON.stringify(window.projects || [])); } catch (err) { console.warn('Could not persist projects locally', err); }
-            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
-
-            try { await syncData(); } catch (err) { console.warn('Sync failed after delete', err); }
-            console.debug('[deleteProject] Projects before:', beforeProjects, 'after:', afterProjects, 'Tasks before:', beforeTasks, 'after:', afterTasks);
+            if (role !== 'manager') return;
+            if (!id) return;
+            if (!confirm('Delete this project and all its tasks?')) return;
+            window.projects = window.projects.filter(p => String(p.id) !== String(id));
+            window.tasks = window.tasks.filter(t => String(t.projectId) !== String(id));
+            await syncData();
+            // After sync, reload canonical data from backend
+            await syncData();
             renderProjects();
         };
 
@@ -155,41 +112,23 @@
             const id = document.getElementById('editProjectId').value;
             const name = document.getElementById('projectName').value.trim();
             const desc = document.getElementById('projectDesc').value.trim();
-
-            if (!name || !desc) {
-                alert('Please fill in both name and description');
-                return;
-            }
-
+            if (!name || !desc) return alert('Please fill in both name and description');
             if (id) {
-                // Edit existing
                 const project = window.projects.find(p => String(p.id) === String(id));
                 if (project) {
                     project.name = name;
                     project.description = desc;
                 }
             } else {
-                // Create new
-                window.projects.push({
-                    id: null,
-                    name,
-                    description: desc,
-                    team_id: teamId
-                });
+                window.projects.push({ id: null, name, description: desc, team_id: teamId });
             }
-
-            // Persist locally so switching pages keeps the project visible immediately
-            try {
-                localStorage.setItem('projects', JSON.stringify(window.projects || []));
-            } catch (err) { console.warn('Could not persist projects locally', err); }
-
+            try { localStorage.setItem('projects', JSON.stringify(window.projects || [])); } catch { }
             await syncData();
             bootstrap.Modal.getInstance(document.getElementById('projectModal')).hide();
             document.getElementById('editProjectId').value = '';
             document.getElementById('projectName').value = '';
             document.getElementById('projectDesc').value = '';
             document.getElementById('projectModalTitle').textContent = 'Create Project';
-
             renderProjects();
         });
 

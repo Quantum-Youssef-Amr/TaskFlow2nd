@@ -1,4 +1,3 @@
-// backend/server.js — FINAL VERSION (NO DATA LOSS!)
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
@@ -8,27 +7,22 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 
-// Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-// Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
-    // prepend timestamp to avoid collisions
     const safe = Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.\-_%]/g, '_');
     cb(null, safe);
   }
 });
 const upload = multer({ storage });
 
-// Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
 
-// Upload endpoint: accepts multipart/form-data with field 'file'
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file' });
   const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
@@ -53,7 +47,6 @@ db.connect(err => {
   console.log('MySQL Connected!');
 });
 
-// LOGIN — WORKS
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
 
@@ -62,8 +55,6 @@ app.post('/api/login', (req, res) => {
 
     const user = results[0];
     let match = await bcrypt.compare(password, user.password);
-    // Development/testing fallback: some demo users in the sample DB may not have matching hashes.
-    // Allow the demo password '123456' for known demo emails as a temporary testing shortcut.
     if (!match) {
       const demoEmails = ['manager@taskflow.com', 'user@taskflow.com', '123@123.com'];
       if (password === '123456' && demoEmails.includes(user.email)) {
@@ -83,11 +74,9 @@ app.post('/api/login', (req, res) => {
       }
     };
 
-    // Always return team-level data (projects/tasks/users/team) for the user's team
     const teamId = user.team_id;
     db.query('SELECT * FROM projects WHERE team_id = ?', [teamId], (err, projects) => {
       db.query('SELECT * FROM tasks WHERE team_id = ?', [teamId], (err, tasks) => {
-        // parse comments JSON if present
         if (Array.isArray(tasks)) {
           tasks = tasks.map(t => {
             try {
@@ -118,7 +107,6 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// FIXED SYNC — NO MORE DELETING EVERYTHING!
 app.post('/api/sync', async (req, res) => {
   const teamId = req.headers['team-id'];
   if (!teamId) return res.json({ success: false, message: 'Team ID required' });
@@ -126,27 +114,73 @@ app.post('/api/sync', async (req, res) => {
   const { projects, tasks } = req.body;
 
   try {
-    // Find deleted projects (those missing from incoming list)
     const incomingProjectIds = new Set((projects || []).map(p => String(p.id)));
     const [dbProjects] = await db.promise().query('SELECT id FROM projects WHERE team_id = ?', [teamId]);
     for (const dbProj of dbProjects) {
       if (!incomingProjectIds.has(String(dbProj.id))) {
-        // Delete project and all its tasks
+        const [tasksToDelete] = await db.promise().query('SELECT comments, files FROM tasks WHERE projectId = ?', [dbProj.id]);
+        for (const t of tasksToDelete) {
+          if (t.files) {
+            try {
+              const filesArr = typeof t.files === 'string' ? JSON.parse(t.files) : t.files;
+              for (const f of filesArr || []) {
+                if (f.data && f.data.includes('/uploads/')) {
+                  const filePath = path.join(__dirname, '..', f.data.split('/uploads/')[1]);
+                  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                }
+              }
+            } catch {}
+          }
+          if (t.comments) {
+            try {
+              const commentsArr = typeof t.comments === 'string' ? JSON.parse(t.comments) : t.comments;
+              for (const c of commentsArr || []) {
+                if (c.file && c.file.data && c.file.data.includes('/uploads/')) {
+                  const filePath = path.join(__dirname, '..', c.file.data.split('/uploads/')[1]);
+                  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                }
+              }
+            } catch {}
+          }
+        }
         await db.promise().query('DELETE FROM tasks WHERE projectId = ?', [dbProj.id]);
         await db.promise().query('DELETE FROM projects WHERE id = ?', [dbProj.id]);
       }
     }
 
-    // Find deleted tasks (those missing from incoming list)
     const incomingTaskIds = new Set((tasks || []).map(t => String(t.id)));
     const [dbTasks] = await db.promise().query('SELECT id FROM tasks WHERE team_id = ?', [teamId]);
     for (const dbTask of dbTasks) {
       if (!incomingTaskIds.has(String(dbTask.id))) {
+        const [taskRows] = await db.promise().query('SELECT comments, files FROM tasks WHERE id = ?', [dbTask.id]);
+        for (const t of taskRows) {
+          if (t.files) {
+            try {
+              const filesArr = typeof t.files === 'string' ? JSON.parse(t.files) : t.files;
+              for (const f of filesArr || []) {
+                if (f.data && f.data.includes('/uploads/')) {
+                  const filePath = path.join(__dirname, '..', f.data.split('/uploads/')[1]);
+                  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                }
+              }
+            } catch {}
+          }
+          if (t.comments) {
+            try {
+              const commentsArr = typeof t.comments === 'string' ? JSON.parse(t.comments) : t.comments;
+              for (const c of commentsArr || []) {
+                if (c.file && c.file.data && c.file.data.includes('/uploads/')) {
+                  const filePath = path.join(__dirname, '..', c.file.data.split('/uploads/')[1]);
+                  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                }
+              }
+            } catch {}
+          }
+        }
         await db.promise().query('DELETE FROM tasks WHERE id = ?', [dbTask.id]);
       }
     }
 
-    // UPSERT PROJECTS (Update if exists, Insert if not)
     for (const p of projects) {
       await new Promise((resolve, reject) => {
         db.query(
@@ -157,22 +191,19 @@ app.post('/api/sync', async (req, res) => {
       });
     }
 
-    // UPSERT TASKS (include comments JSON column)
     for (const t of tasks) {
       await new Promise((resolve, reject) => {
         const commentsJson = JSON.stringify(t.comments || []);
-        // Normalize due to MySQL DATE format (YYYY-MM-DD). Accepts either 'YYYY-MM-DD' or ISO strings.
         let dueSql = null;
         try {
           if (t.due) {
-            // If it's already in YYYY-MM-DD, use it; otherwise parse and format
             const isoMatch = /^\d{4}-\d{2}-\d{2}$/.test(String(t.due));
             if (isoMatch) {
               dueSql = t.due;
             } else {
               const d = new Date(t.due);
               if (!isNaN(d.getTime())) {
-                dueSql = d.toISOString().slice(0, 10); // YYYY-MM-DD
+                dueSql = d.toISOString().slice(0, 10);
               } else {
                 dueSql = null;
               }
@@ -197,12 +228,10 @@ app.post('/api/sync', async (req, res) => {
       });
     }
 
-    // After sync, return the canonical project/task lists for the team so clients can update local state
     db.query('SELECT * FROM projects WHERE team_id = ?', [teamId], (err, projectsAfter) => {
       if (err) return res.json({ success: false, message: 'Sync completed but fetch failed' });
       db.query('SELECT * FROM tasks WHERE team_id = ?', [teamId], (err, tasksAfter) => {
         if (err) return res.json({ success: false, message: 'Sync completed but fetch failed' });
-        // parse comments JSON field if present before returning to clients
         if (Array.isArray(tasksAfter)) {
           tasksAfter = tasksAfter.map(t => {
             try {
@@ -223,7 +252,6 @@ app.post('/api/sync', async (req, res) => {
   }
 });
 
-// REGISTER — WORKS
 app.post('/api/register', async (req, res) => {
   const { name, email, password, role, teamId } = req.body;
   const hashed = await bcrypt.hash(password, 10);

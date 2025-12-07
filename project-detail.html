@@ -163,23 +163,14 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/main.js"></script>
     <script>
-        // Upload helper: sends a File to the backend and returns stored URL
+        // Upload file to backend and return URL
         async function uploadFileToServer(file) {
             if (!file) return null;
-            try {
-                const fd = new FormData();
-                fd.append('file', file, file.name);
-                const res = await fetch('http://localhost:5000/api/upload', {
-                    method: 'POST',
-                    body: fd
-                });
-                const data = await res.json();
-                if (data && data.success) return { name: data.name || file.name, data: data.url };
-                return null;
-            } catch (err) {
-                console.warn('Upload failed', err);
-                return null;
-            }
+            const fd = new FormData();
+            fd.append('file', file, file.name);
+            const res = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: fd });
+            const data = await res.json();
+            return (data && data.success) ? { name: data.name || file.name, data: data.url } : null;
         }
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -196,7 +187,8 @@
 
         // Show delete button only for manager
         if (currentUserRole === 'manager') {
-            document.getElementById('deleteProjectBtn').style.display = 'inline-block';
+            const delBtn = document.getElementById('deleteProjectBtn');
+            if (delBtn) delBtn.style.display = 'inline-block';
         }
 
         const columns = {
@@ -207,22 +199,15 @@
 
         let currentTask = null;
 
-        // Load real team members from login data (fallback to localStorage if needed)
-        const teamUsers = (window.appUsers && window.appUsers.length ? window.appUsers : (JSON.parse(localStorage.getItem('teamUsers') || '[]')))
-            .filter(u => String(u.team_id) === String(teamId));
-
         // Populate assignee dropdowns
         function populateAssigneeDropdowns() {
             const selects = [document.getElementById('taskAssignee'), document.getElementById('editTaskAssignee')];
-            // If teamUsers is empty, try to reload from localStorage once more
-            const members = (teamUsers && teamUsers.length) ? teamUsers : (JSON.parse(localStorage.getItem('teamUsers') || '[]')).filter(u => String(u.team_id) === String(teamId));
-            console.log('Populating assignees with members:', members);
+            const members = (window.appUsers || []).filter(u => String(u.team_id) === String(teamId));
             selects.forEach(select => {
                 if (!select) return;
                 select.innerHTML = '<option value="">Select team member...</option>';
                 members.forEach(user => {
                     const opt = document.createElement('option');
-                    // Support users that may only have email or id fields
                     opt.value = user.name || user.email || user.id || '';
                     opt.textContent = user.name || user.email || (`User ${user.id || ''}`);
                     select.appendChild(opt);
@@ -232,19 +217,11 @@
 
         function renderTasks() {
             Object.values(columns).forEach(col => col.innerHTML = '');
-
-            // Coerce types and support both snake_case and camelCase keys from different sources
-            const teamTasks = window.tasks.filter(t => {
-                const pid = Number(t.projectId || t.project_id || 0);
-                const tid = String(t.team_id || t.teamId || '');
-                return pid === projectId && tid === String(teamId);
-            });
-
+            const teamTasks = window.tasks.filter(t => Number(t.projectId) === projectId && String(t.team_id) === String(teamId));
             if (teamTasks.length === 0) {
-                document.getElementById('todoColumn').innerHTML = '<p class="text-muted text-center py-5">No tasks yet</p>';
+                columns.todo.innerHTML = '<p class="text-muted text-center py-5">No tasks yet</p>';
                 return;
             }
-
             teamTasks.forEach(task => {
                 const card = document.createElement('div');
                 card.className = 'task-card mb-3 p-3 rounded shadow-sm border border-secondary';
@@ -258,14 +235,9 @@
             <span class="badge status-${task.status || 'todo'}">${(task.status || 'todo').replace('-', ' ')}</span>
           </div>
         `;
-                card.onclick = (e) => {
-                    e.stopPropagation();
-                    openTaskDetail(task);
-                };
-                // Place in the right column; guard against missing/unknown statuses
+                card.onclick = e => { e.stopPropagation(); openTaskDetail(task); };
                 const statusKey = (task.status === 'in-progress') ? 'in-progress' : (task.status || 'todo');
-                const targetCol = columns[statusKey] || columns.todo;
-                targetCol.appendChild(card);
+                (columns[statusKey] || columns.todo).appendChild(card);
             });
             setupDragDrop();
         }
@@ -278,7 +250,6 @@
                 });
                 card.addEventListener('dragend', () => card.classList.remove('dragging'));
             });
-
             Object.values(columns).forEach(col => {
                 col.addEventListener('dragover', e => e.preventDefault());
                 col.addEventListener('drop', async e => {
@@ -286,16 +257,10 @@
                     const id = e.dataTransfer.getData('id');
                     const task = window.tasks.find(t => t.id == id);
                     if (!task) return;
-
-                    // Read status from data-status attribute for robust detection
-                    const newStatus = col.dataset.status || 'todo';
-
-                    task.status = newStatus;
-                    // Persist locally first for immediate responsiveness
-                    try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+                    task.status = col.dataset.status || 'todo';
+                    try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch { }
                     await syncData();
                     renderTasks();
-                    updatePersonalNotifications();
                 });
             });
         }
@@ -304,16 +269,7 @@
         document.getElementById('saveTaskBtn').addEventListener('click', async () => {
             const title = document.getElementById('taskTitle').value.trim();
             const assignee = document.getElementById('taskAssignee').value;
-
-            if (!title) {
-                alert('Task title is required');
-                return;
-            }
-            if (!assignee) {
-                alert('Please assign to a team member');
-                return;
-            }
-
+            if (!title || !assignee) return alert('Task title and assignee required');
             const newTask = {
                 id: null,
                 projectId,
@@ -327,17 +283,13 @@
                 comments: [],
                 files: []
             };
-            // If files were attached, upload them first and use server URLs
-            const fileInput = document.getElementById('taskFiles');
-            const files = Array.from(fileInput.files || []);
+            const files = Array.from(document.getElementById('taskFiles').files || []);
             if (files.length) {
                 const uploaded = await Promise.all(files.map(f => uploadFileToServer(f)));
-                newTask.files = uploaded.filter(Boolean).map(u => ({ name: u.name, data: u.data }));
+                newTask.files = uploaded.filter(Boolean).map(u => ({ name: u.name, data: u.url || u.data }));
             }
-
             window.tasks.push(newTask);
-            // Persist immediately so new tasks remain when navigating between pages
-            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch { }
             await syncData();
             bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
             renderTasks();
@@ -359,13 +311,13 @@
             document.getElementById('deleteTaskBtn').style.display = isManager ? 'inline-block' : 'none';
 
             // Files
-            document.getElementById('fileList').innerHTML = task.files?.length > 0
-                ? task.files.map(f => `<li class="list-group-item"><a href="${f.data}" download="${f.name}" class="file-link">${f.name}</a></li>`).join('')
+            document.getElementById('fileList').innerHTML = Array.isArray(task.files) && task.files.length > 0
+                ? task.files.map(f => `<li class="list-group-item"><a href="${f.data || f.url}" download="${f.name}" class="file-link">${f.name}</a></li>`).join('')
                 : '<li class="list-group-item text-muted">No files attached</li>';
 
             // Comments
-            document.getElementById('commentList').innerHTML = task.comments?.length > 0
-                ? task.comments.map(c => `<li class="list-group-item"><strong>${c.user}:</strong> ${c.text || ''} ${c.file ? `<a href="${c.file.data}" download="${c.file.name}" class="file-link">[${c.file.name}]</a>` : ''}</li>`).join('')
+            document.getElementById('commentList').innerHTML = Array.isArray(task.comments) && task.comments.length > 0
+                ? task.comments.map(c => `<li class="list-group-item"><strong>${c.user}:</strong> ${c.text || ''} ${c.file ? `<a href="${c.file.data || c.file.url}" download="${c.file.name}" class="file-link">[${c.file.name}]</a>` : ''}</li>`).join('')
                 : '<li class="list-group-item text-muted">No comments yet</li>';
 
             new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
@@ -381,17 +333,14 @@
             bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
             new bootstrap.Modal(document.getElementById('editTaskModal')).show();
         });
-
         document.getElementById('saveEditTaskBtn').addEventListener('click', async () => {
-            // Find the canonical task object in window.tasks and update it
-            let taskRef = window.tasks.find(t => String(t.id) === String(currentTask.id));
-            if (!taskRef) taskRef = currentTask;
+            let taskRef = window.tasks.find(t => String(t.id) === String(currentTask.id)) || currentTask;
             taskRef.title = document.getElementById('editTaskTitle').value.trim();
             taskRef.description = document.getElementById('editTaskDesc').value;
             taskRef.assignee = document.getElementById('editTaskAssignee').value;
             taskRef.priority = document.getElementById('editTaskPriority').value;
             taskRef.due = document.getElementById('editTaskDue').value;
-            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
+            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch { }
             await syncData();
             bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide();
             renderTasks();
@@ -399,98 +348,53 @@
 
         // Delete task
         window.deleteTask = async () => {
-            if (confirm('Delete this task permanently?')) {
-                window.tasks = window.tasks.filter(t => t.id !== currentTask.id);
-                try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
-                await syncData();
-                bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
-                renderTasks();
-            }
+            if (!currentTask || !confirm('Delete this task permanently?')) return;
+            window.tasks = window.tasks.filter(t => t.id !== currentTask.id);
+            await syncData();
+            // After sync, reload canonical data from backend
+            await syncData();
+            bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
+            renderTasks();
         };
 
-        // Delete project (accepts optional id — used from projects list or detail page)
+        // Delete project
         window.deleteProject = async (id) => {
-            const resolvedId = (id !== undefined && id !== null) ? id : projectId;
-            console.debug('[deleteProject] called with id:', id, 'resolvedId:', resolvedId, 'window.projects:', window.projects);
-            if (!resolvedId) { console.warn('[deleteProject] No resolvedId'); return; }
-            if (!confirm('Delete this project and ALL its tasks?')) return;
-
-            // Remove project entries using flexible key checks to tolerate mixed key names/types
-            const beforeProjects = window.projects.length;
-            window.projects = (window.projects || []).filter(p => {
-                const keep = String(p.id) !== String(resolvedId) && String(p.project_id || '') !== String(resolvedId);
-                if (!keep) console.debug('[deleteProject] Removing project:', p);
-                return keep;
-            });
-            const afterProjects = window.projects.length;
-
-            const beforeTasks = window.tasks.length;
-            window.tasks = (window.tasks || []).filter(t => {
-                const keep = String(t.projectId || t.project_id || '') !== String(resolvedId);
-                if (!keep) console.debug('[deleteProject] Removing task:', t);
-                return keep;
-            });
-            const afterTasks = window.tasks.length;
-
-            // persist changes locally
-            try { localStorage.setItem('projects', JSON.stringify(window.projects || [])); } catch (err) { console.warn('Could not persist projects locally', err); }
-            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
-
-            // Attempt sync but don't block the UX if offline / teamId missing
-            try { await syncData(); } catch (err) { console.warn('Sync after delete failed', err); }
-
-            console.debug('[deleteProject] Projects before:', beforeProjects, 'after:', afterProjects, 'Tasks before:', beforeTasks, 'after:', afterTasks);
-            // Redirect back to project listing
+            const resolvedId = id ?? projectId;
+            if (!resolvedId) return;
+            if (!confirm('Delete this project and all its tasks?')) return;
+            window.projects = window.projects.filter(p => String(p.id) !== String(resolvedId));
+            window.tasks = window.tasks.filter(t => String(t.projectId) !== String(resolvedId));
+            await syncData();
+            // After sync, reload canonical data from backend
+            await syncData();
             location.href = 'projects.html';
         };
 
         // Status change
         document.getElementById('detailStatus').addEventListener('change', async (e) => {
-            if (currentTask) {
-                currentTask.status = e.target.value;
-                try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
-                await syncData();
-                renderTasks();
-            }
+            if (!currentTask) return;
+            currentTask.status = e.target.value;
+            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch { }
+            await syncData();
+            renderTasks();
         });
 
-        // Add comment (only append the new comment, not the whole section)
+        // Add comment
         window.addComment = async () => {
             const text = document.getElementById('newComment').value.trim();
             const fileInput = document.getElementById('commentFile');
             const file = fileInput.files[0];
-
             if (!text && !file) return;
-
-            const comment = {
-                user: currentUserName,
-                text,
-                time: new Date().toLocaleString()
-            };
-
+            const comment = { user: currentUserName, text, time: new Date().toLocaleString(), file: null };
             if (file) {
-                // upload comment file to server and use persistent URL
                 const uploaded = await uploadFileToServer(file);
-                if (uploaded) comment.file = { name: uploaded.name || file.name, data: uploaded.data };
+                if (uploaded) comment.file = { name: uploaded.name || file.name, data: uploaded.url || uploaded.data };
             }
-
-            // Ensure we update the canonical task object inside window.tasks
-            let taskRef = null;
-            if (currentTask && currentTask.id !== undefined && currentTask.id !== null) {
-                taskRef = window.tasks.find(t => String(t.id) === String(currentTask.id));
-            }
-            if (!taskRef) taskRef = window.tasks.find(t => t === currentTask) || currentTask;
-
+            let taskRef = window.tasks.find(t => String(t.id) === String(currentTask.id)) || currentTask;
             if (!taskRef.comments) taskRef.comments = [];
             taskRef.comments.push(comment);
-
-            // keep currentTask in sync with the authoritative reference
             currentTask = taskRef;
-
-            // Persist locally first for immediate UX
-            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch (err) { console.warn('Could not persist tasks locally', err); }
-
-            // Only append the new comment to the list
+            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch { }
             const listEl = document.getElementById('commentList');
             const newCommentHtml = `<li class="list-group-item"><strong>${comment.user}:</strong> ${comment.text || ''} ${comment.file ? `<a href="${comment.file.data}" download="${comment.file.name}" class="file-link">[${comment.file.name}]</a>` : ''}</li>`;
             if (listEl && listEl.children.length && listEl.children[0].classList.contains('text-muted')) {
@@ -498,12 +402,8 @@
             } else {
                 listEl.insertAdjacentHTML('beforeend', newCommentHtml);
             }
-
-            // Clear inputs immediately for responsiveness
             document.getElementById('newComment').value = '';
             fileInput.value = '';
-
-            // Sync with server and then refresh the authoritative task copy to avoid duplicates
             await syncData();
         };
 

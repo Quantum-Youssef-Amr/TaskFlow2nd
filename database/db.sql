@@ -39,6 +39,7 @@ CREATE TABLE tasks (
   title VARCHAR(200) NOT NULL,
   description TEXT,
   comments JSON,
+  files JSON,
   assignee VARCHAR(100),
   priority ENUM('low','medium','high','critical') DEFAULT 'medium',
   due DATE,
