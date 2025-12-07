@@ -11,6 +11,10 @@
 
 <body>
     <div class="container mt-5 pt-4">
+
+        <!-- ======================================== -->
+        <!-- PAGE HEADER - Project Title + Action Buttons -->
+        <!-- ======================================== -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 id="projectTitle" class="text-white fw-bold">Loading...</h1>
             <div>
@@ -21,6 +25,9 @@
             </div>
         </div>
 
+        <!-- ======================================== -->
+        <!-- KANBAN BOARD - Three Status Columns -->
+        <!-- ======================================== -->
         <div class="row g-4">
             <div class="col-md-4">
                 <div class="kanban-col shadow-lg">
@@ -43,7 +50,9 @@
         </div>
     </div>
 
-    <!-- Add Task Modal -->
+    <!-- ======================================== -->
+    <!-- MODAL: Add New Task -->
+    <!-- ======================================== -->
     <div class="modal fade" id="taskModal">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -55,14 +64,12 @@
                     <input type="text" id="taskTitle" class="form-control form-control-lg mb-3" placeholder="Task Title"
                         required>
                     <textarea id="taskDesc" class="form-control mb-3" rows="3" placeholder="Description"></textarea>
-
                     <div class="mb-3">
                         <label class="form-label text-accent fw-bold">Assign To</label>
                         <select id="taskAssignee" class="form-select form-select-lg" required>
                             <option value="">Select team member...</option>
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label text-accent fw-bold">Priority</label>
                         <select id="taskPriority" class="form-select form-select-lg">
@@ -72,12 +79,10 @@
                             <option value="critical">Critical Priority</option>
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label text-accent fw-bold">Due Date</label>
                         <input type="date" id="taskDue" class="form-control form-control-lg">
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label text-accent fw-bold">Attach Files</label>
                         <input type="file" id="taskFiles" class="form-control" multiple>
@@ -91,7 +96,9 @@
         </div>
     </div>
 
-    <!-- Edit Task Modal -->
+    <!-- ======================================== -->
+    <!-- MODAL: Edit Task -->
+    <!-- ======================================== -->
     <div class="modal fade" id="editTaskModal">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -119,7 +126,9 @@
         </div>
     </div>
 
-    <!-- Task Detail Modal -->
+    <!-- ======================================== -->
+    <!-- MODAL: Task Details + Comments + Files -->
+    <!-- ======================================== -->
     <div class="modal fade" id="taskDetailModal">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -160,8 +169,16 @@
         </div>
     </div>
 
+    <!-- ======================================== -->
+    <!-- EXTERNAL SCRIPTS -->
+    <!-- ======================================== -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/main.js"></script>
+
+    <!-- ======================================== -->
+    <!-- PROJECT PAGE LOGIC -->
+    <!-- All functionality for Kanban board, modals, file upload, sync, etc. -->
+    <!-- ======================================== -->
     <script>
         // Upload file to backend and return URL
         async function uploadFileToServer(file) {
@@ -170,7 +187,7 @@
             fd.append('file', file, file.name);
             const res = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: fd });
             const data = await res.json();
-            return (data && data.success) ? { name: data.name || file.name, data: data.url } : null;
+            return (data && data.success) ? { name: data.name || file.name, url: data.url } : null;
         }
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -179,13 +196,13 @@
         const currentUserRole = localStorage.getItem('role');
         const currentUserName = localStorage.getItem('user');
 
-        // Show project title (coerce id types to avoid mismatches from DB strings)
+        // Display project title
         const project = window.projects.find(p => Number(p.id) === projectId);
         if (project) {
             document.getElementById('projectTitle').textContent = project.name;
         }
 
-        // Show delete button only for manager
+        // Show delete project button only for managers
         if (currentUserRole === 'manager') {
             const delBtn = document.getElementById('deleteProjectBtn');
             if (delBtn) delBtn.style.display = 'inline-block';
@@ -196,10 +213,9 @@
             'in-progress': document.getElementById('inProgressColumn'),
             done: document.getElementById('doneColumn')
         };
-
         let currentTask = null;
 
-        // Populate assignee dropdowns
+        // Populate assignee dropdowns (both add & edit modals)
         function populateAssigneeDropdowns() {
             const selects = [document.getElementById('taskAssignee'), document.getElementById('editTaskAssignee')];
             const members = (window.appUsers || []).filter(u => String(u.team_id) === String(teamId));
@@ -215,6 +231,7 @@
             });
         }
 
+        // Render all tasks into their correct columns
         function renderTasks() {
             Object.values(columns).forEach(col => col.innerHTML = '');
             const teamTasks = window.tasks.filter(t => Number(t.projectId) === projectId && String(t.team_id) === String(teamId));
@@ -234,7 +251,7 @@
             <span class="badge priority-${task.priority || 'low'} me-2">${(task.priority || 'low').toUpperCase()}</span>
             <span class="badge status-${task.status || 'todo'}">${(task.status || 'todo').replace('-', ' ')}</span>
           </div>
-        `;
+`;
                 card.onclick = e => { e.stopPropagation(); openTaskDetail(task); };
                 const statusKey = (task.status === 'in-progress') ? 'in-progress' : (task.status || 'todo');
                 (columns[statusKey] || columns.todo).appendChild(card);
@@ -242,6 +259,7 @@
             setupDragDrop();
         }
 
+        // Enable drag-and-drop between columns
         function setupDragDrop() {
             document.querySelectorAll('.task-card').forEach(card => {
                 card.addEventListener('dragstart', e => {
@@ -265,11 +283,14 @@
             });
         }
 
-        // Save new task
+        // Create new task (with file uploads)
         document.getElementById('saveTaskBtn').addEventListener('click', async () => {
             const title = document.getElementById('taskTitle').value.trim();
             const assignee = document.getElementById('taskAssignee').value;
-            if (!title || !assignee) return alert('Task title and assignee required');
+            if (!title || !assignee) {
+                alert('Task title and assignee required');
+                return;
+            }
             const newTask = {
                 id: null,
                 projectId,
@@ -284,18 +305,40 @@
                 files: []
             };
             const files = Array.from(document.getElementById('taskFiles').files || []);
+            let uploadError = false;
             if (files.length) {
-                const uploaded = await Promise.all(files.map(f => uploadFileToServer(f)));
-                newTask.files = uploaded.filter(Boolean).map(u => ({ name: u.name, data: u.url || u.data }));
+                try {
+                    const uploaded = await Promise.all(files.map(async f => {
+                        const result = await uploadFileToServer(f);
+                        if (!result) {
+                            uploadError = true;
+                            console.error('File upload failed for', f.name);
+                        }
+                        return result;
+                    }));
+                    newTask.files = uploaded.filter(Boolean).map(u => ({ name: u.name, url: u.url }));
+                } catch (err) {
+                    uploadError = true;
+                    console.error('File upload error:', err);
+                }
             }
-            window.tasks.push(newTask);
-            try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch { }
-            await syncData();
-            bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
-            renderTasks();
+            if (uploadError) {
+                alert('One or more files failed to upload. Task not created.');
+                return;
+            }
+            try {
+                window.tasks.push(newTask);
+                localStorage.setItem('tasks', JSON.stringify(window.tasks || []));
+                await syncData();
+                bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
+                renderTasks();
+            } catch (err) {
+                alert('Task creation failed. See console for details.');
+                console.error('Task creation error:', err);
+            }
         });
 
-        // Task detail modal
+        // Open task detail modal
         window.openTaskDetail = (task) => {
             currentTask = task;
             document.getElementById('detailTitle').textContent = task.title;
@@ -305,25 +348,25 @@
             document.getElementById('detailDue').textContent = task.due || 'No due date';
             document.getElementById('detailStatus').value = task.status;
 
-            // Show edit/delete only for manager
+            // Show edit/delete buttons only for managers
             const isManager = currentUserRole === 'manager';
             document.getElementById('editTaskBtn').style.display = isManager ? 'inline-block' : 'none';
             document.getElementById('deleteTaskBtn').style.display = isManager ? 'inline-block' : 'none';
 
-            // Files
+            // Render attached files
             document.getElementById('fileList').innerHTML = Array.isArray(task.files) && task.files.length > 0
-                ? task.files.map(f => `<li class="list-group-item"><a href="${f.data || f.url}" download="${f.name}" class="file-link">${f.name}</a></li>`).join('')
+                ? task.files.map(f => `<li class="list-group-item"><a href="${f.url}" download="${f.name}" class="file-link" target="_blank">${f.name}</a></li>`).join('')
                 : '<li class="list-group-item text-muted">No files attached</li>';
 
-            // Comments
+            // Render comments
             document.getElementById('commentList').innerHTML = Array.isArray(task.comments) && task.comments.length > 0
-                ? task.comments.map(c => `<li class="list-group-item"><strong>${c.user}:</strong> ${c.text || ''} ${c.file ? `<a href="${c.file.data || c.file.url}" download="${c.file.name}" class="file-link">[${c.file.name}]</a>` : ''}</li>`).join('')
+                ? task.comments.map(c => `<li class="list-group-item"><strong>${c.user}:</strong> ${c.text || ''} ${c.file ? `<a href="${c.file.url}" download="${c.file.name}" class="file-link" target="_blank">[${c.file.name}]</a>` : ''}</li>`).join('')
                 : '<li class="list-group-item text-muted">No comments yet</li>';
 
             new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
         };
 
-        // Edit task
+        // Open edit task modal
         document.getElementById('editTaskBtn').addEventListener('click', () => {
             document.getElementById('editTaskTitle').value = currentTask.title;
             document.getElementById('editTaskDesc').value = currentTask.description || '';
@@ -333,6 +376,8 @@
             bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
             new bootstrap.Modal(document.getElementById('editTaskModal')).show();
         });
+
+        // Save edited task
         document.getElementById('saveEditTaskBtn').addEventListener('click', async () => {
             let taskRef = window.tasks.find(t => String(t.id) === String(currentTask.id)) || currentTask;
             taskRef.title = document.getElementById('editTaskTitle').value.trim();
@@ -346,18 +391,17 @@
             renderTasks();
         });
 
-        // Delete task
+        // Delete current task
         window.deleteTask = async () => {
             if (!currentTask || !confirm('Delete this task permanently?')) return;
             window.tasks = window.tasks.filter(t => t.id !== currentTask.id);
             await syncData();
-            // After sync, reload canonical data from backend
-            await syncData();
+            await syncData(); // Double sync to ensure clean state
             bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
             renderTasks();
         };
 
-        // Delete project
+        // Delete entire project
         window.deleteProject = async (id) => {
             const resolvedId = id ?? projectId;
             if (!resolvedId) return;
@@ -365,12 +409,11 @@
             window.projects = window.projects.filter(p => String(p.id) !== String(resolvedId));
             window.tasks = window.tasks.filter(t => String(t.projectId) !== String(resolvedId));
             await syncData();
-            // After sync, reload canonical data from backend
             await syncData();
             location.href = 'projects.html';
         };
 
-        // Status change
+        // Change task status from detail modal
         document.getElementById('detailStatus').addEventListener('change', async (e) => {
             if (!currentTask) return;
             currentTask.status = e.target.value;
@@ -379,7 +422,7 @@
             renderTasks();
         });
 
-        // Add comment
+        // Add comment (with optional file)
         window.addComment = async () => {
             const text = document.getElementById('newComment').value.trim();
             const fileInput = document.getElementById('commentFile');
@@ -388,7 +431,7 @@
             const comment = { user: currentUserName, text, time: new Date().toLocaleString(), file: null };
             if (file) {
                 const uploaded = await uploadFileToServer(file);
-                if (uploaded) comment.file = { name: uploaded.name || file.name, data: uploaded.url || uploaded.data };
+                if (uploaded) comment.file = { name: uploaded.name || file.name, url: uploaded.url };
             }
             let taskRef = window.tasks.find(t => String(t.id) === String(currentTask.id)) || currentTask;
             if (!taskRef.comments) taskRef.comments = [];
@@ -396,7 +439,7 @@
             currentTask = taskRef;
             try { localStorage.setItem('tasks', JSON.stringify(window.tasks || [])); } catch { }
             const listEl = document.getElementById('commentList');
-            const newCommentHtml = `<li class="list-group-item"><strong>${comment.user}:</strong> ${comment.text || ''} ${comment.file ? `<a href="${comment.file.data}" download="${comment.file.name}" class="file-link">[${comment.file.name}]</a>` : ''}</li>`;
+            const newCommentHtml = `<li class="list-group-item"><strong>${comment.user}:</strong> ${comment.text || ''} ${comment.file ? `<a href="${comment.file.url}" download="${comment.file.name}" class="file-link">[${comment.file.name}]</a>` : ''}</li>`;
             if (listEl && listEl.children.length && listEl.children[0].classList.contains('text-muted')) {
                 listEl.innerHTML = newCommentHtml;
             } else {
@@ -407,11 +450,14 @@
             await syncData();
         };
 
-        // Initialize
+        // Initialize page
         populateAssigneeDropdowns();
         renderTasks();
     </script>
 
+    <!-- ======================================== -->
+    <!-- KANBAN BOARD STYLES -->
+    <!-- ======================================== -->
     <style>
         .tasks {
             min-height: 100px;

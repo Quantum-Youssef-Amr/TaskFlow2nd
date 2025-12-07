@@ -10,25 +10,29 @@
 </head>
 
 <body class="d-flex align-items-center justify-content-center min-vh-100 bg-black">
+
+    <!-- ======================================== -->
+    <!-- REGISTRATION CARD (centered) -->
+    <!-- ======================================== -->
     <div class="card shadow-lg border-0" style="max-width: 460px; width: 100%;">
         <div class="card-body p-5">
             <h2 class="text-center mb-4 fw-bold text-white">Create Account</h2>
 
+            <!-- ======================================== -->
+            <!-- REGISTRATION FORM -->
+            <!-- ======================================== -->
             <form id="registerForm">
                 <div class="mb-3">
                     <input type="text" id="name" class="form-control form-control-lg" placeholder="Full Name" required>
                 </div>
-
                 <div class="mb-3">
                     <input type="email" id="email" class="form-control form-control-lg" placeholder="Email Address"
                         required>
                 </div>
-
                 <div class="mb-3">
                     <input type="password" id="password" class="form-control form-control-lg"
                         placeholder="Password (min 6 characters)" required minlength="6">
                 </div>
-
                 <div class="mb-3">
                     <select id="role" class="form-select form-select-lg">
                         <option value="manager">Create Team as Manager</option>
@@ -36,7 +40,7 @@
                     </select>
                 </div>
 
-                <!-- Team ID Field — Shows only for members -->
+                <!-- Team ID field - shown only when "Join as Team Member" is selected -->
                 <div class="mb-4" id="teamIdContainer" style="display: none;">
                     <div class="input-group">
                         <span class="input-group-text bg-dark border-secondary text-accent">Team ID</span>
@@ -51,6 +55,7 @@
                 </button>
             </form>
 
+            <!-- Login link for existing users -->
             <div class="text-center mt-4">
                 <a href="login.html" class="text-accent text-decoration-none small">
                     Already have an account? <strong>Login here</strong>
@@ -59,23 +64,27 @@
         </div>
     </div>
 
+    <!-- ======================================== -->
+    <!-- REGISTRATION PAGE LOGIC -->
+    <!-- Handles role-based field visibility and API registration -->
+    <!-- ======================================== -->
     <script>
-        // Show/hide Team ID field
+        // Show/hide Team ID field based on selected role
         document.getElementById('role').addEventListener('change', function () {
             const teamContainer = document.getElementById('teamIdContainer');
             const teamInput = document.getElementById('teamId');
-
             if (this.value === 'member') {
                 teamContainer.style.display = 'block';
                 teamInput.required = true;
-            } else {
+            }
+            else {
                 teamContainer.style.display = 'none';
                 teamInput.required = false;
                 teamInput.value = '';
             }
         });
 
-        // Handle registration
+        // Handle form submission - send registration request to backend
         document.getElementById('registerForm').addEventListener('submit', async e => {
             e.preventDefault();
 
@@ -85,11 +94,11 @@
             const role = document.getElementById('role').value;
             const teamId = role === 'member' ? document.getElementById('teamId').value.trim() : null;
 
+            // Basic validation
             if (!name || !email || !password) {
                 alert('Please fill all fields');
                 return;
             }
-
             if (role === 'member' && !teamId) {
                 alert('Team ID is required for team members');
                 return;

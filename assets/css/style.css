@@ -1,17 +1,30 @@
+/* ========================================
+   TASKFLOW GLOBAL STYLES (style.css)
+   Dark theme with accent color #FF0B55
+   ======================================== */
+
+/* === CSS Custom Properties (Theme Variables) === */
 :root {
     --bg: #111;
+    /* Main background */
     --text: #fff;
+    /* Primary text color */
     --accent: #FF0B55;
+    /* Brand accent (hot pink) */
     --card-bg: #1a1a1a;
+    /* Card / panel background */
     --border: #333;
+    /* Default borders */
 }
 
+/* === Base Body Styling === */
 body {
     background: var(--bg);
     color: var(--text);
     font-family: 'Segoe UI', sans-serif;
 }
 
+/* === Accent Buttons === */
 .btn-accent {
     background: var(--accent) !important;
     border: none !important;
@@ -24,6 +37,8 @@ body {
     transform: translateY(-3px);
     box-shadow: 0 10px 25px rgba(255, 11, 85, 0.4);
 }
+
+/* === Login/Register Links === */
 .login-register-link {
     color: #0d6efd !important;
     font-weight: 500;
@@ -36,12 +51,14 @@ body {
     text-decoration: underline;
 }
 
+/* === Cards (Panels, Modals, etc.) === */
 .card {
     background: var(--card-bg) !important;
     border: 1px solid var(--border) !important;
     color: white;
 }
 
+/* === Form Controls (Inputs, Selects) === */
 .form-control,
 .form-select {
     background: #222 !important;
@@ -49,11 +66,13 @@ body {
     color: white !important;
 }
 
-.form-control:focus {
+.form-control:focus,
+.form-select:focus {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 0.25rem rgba(255, 11, 85, 0.3) !important;
 }
 
+/* === Navigation Bar === */
 .navbar {
     background: #0a0a0a !important;
     border-bottom: 1px solid var(--border);
@@ -64,10 +83,12 @@ body {
     color: white !important;
 }
 
+/* === Badge with Accent Background === */
 .badge-accent {
     background: var(--accent) !important;
 }
 
+/* === Task Cards (Kanban) === */
 .task-card {
     background: #222;
     border: 1px solid #444;
@@ -84,6 +105,7 @@ body {
     box-shadow: 0 10px 20px rgba(255, 11, 85, 0.2);
 }
 
+/* === Priority Badges === */
 .priority-critical {
     background: #ff0b55;
     color: white;
@@ -104,6 +126,7 @@ body {
     color: white;
 }
 
+/* === Status Badges === */
 .status-todo {
     background: #444;
     color: #ccc;
@@ -119,6 +142,7 @@ body {
     color: white;
 }
 
+/* === Kanban Columns === */
 .kanban-col {
     background: #1e1e1e;
     border-radius: 16px;
@@ -126,6 +150,7 @@ body {
     min-height: 500px;
 }
 
+/* === File Links (in comments/tasks) === */
 .file-link {
     color: #FF0B55;
     text-decoration: underline;

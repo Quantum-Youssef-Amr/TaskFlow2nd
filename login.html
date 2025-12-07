@@ -10,9 +10,17 @@
 </head>
 
 <body class="d-flex align-items-center justify-content-center min-vh-100 bg-black">
+
+    <!-- ======================================== -->
+    <!-- LOGIN CARD (centered on screen) -->
+    <!-- ======================================== -->
     <div class="card shadow-lg border-0" style="max-width: 420px; width: 100%;">
         <div class="card-body p-5">
             <h2 class="text-center mb-4 fw-bold">Welcome Back</h2>
+
+            <!-- ======================================== -->
+            <!-- LOGIN FORM -->
+            <!-- ======================================== -->
             <form id="loginForm">
                 <input type="email" class="form-control form-control-lg mb-3" id="email" placeholder="Email" required>
                 <input type="password" class="form-control form-control-lg mb-4" id="password" placeholder="Password"
@@ -22,6 +30,10 @@
                     <a href="register.html" class="small login-register-link">Create a New Account</a>
                 </div>
             </form>
+
+            <!-- ======================================== -->
+            <!-- DEMO ACCOUNT INFO -->
+            <!-- ======================================== -->
             <div class="text-center mt-4 small text-muted">
                 <p>Demo Accounts:</p>
                 <p>Manager: manager@taskflow.com</p>
@@ -31,14 +43,24 @@
         </div>
     </div>
 
-
+    <!-- ======================================== -->
+    <!-- MAIN APP SCRIPT (auth, sync, etc.) -->
+    <!-- ======================================== -->
     <script src="assets/js/main.js"></script>
+
+    <!-- ======================================== -->
+    <!-- LOGIN FORM SUBMISSION HANDLER -->
+    <!-- Handles API call, stores user/team data, and redirects -->
+    <!-- ======================================== -->
     <script>
         document.getElementById('loginForm').addEventListener('submit', async e => {
             e.preventDefault();
+
+            // Get form values
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
+            // Call login API
             const res = await fetch('http://localhost:5000/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -47,23 +69,33 @@
 
             const data = await res.json();
 
+            // Successful login
             if (data.success) {
-                // Save user info
+                // Save basic user info to localStorage
                 localStorage.setItem('user', data.user.name);
                 localStorage.setItem('role', data.user.role);
                 localStorage.setItem('teamId', data.user.teamId);
 
-                // Save team data if manager
+                // If team data is returned (manager or member with data)
                 if (data.data) {
-                    // Use centralized loader if available to keep behavior consistent
+                    // Prefer centralized loader from main.js if it exists
                     if (typeof loadTeamData === 'function') {
-                        loadTeamData({ projects: data.data.projects || [], tasks: data.data.tasks || [], users: data.data.users || [], team: data.data.team || null, userRole: data.user.role, currentUser: data.user.name });
+                        loadTeamData({
+                            projects: data.data.projects || [],
+                            tasks: data.data.tasks || [],
+                            users: data.data.users || [],
+                            team: data.data.team || null,
+                            userRole: data.user.role,
+                            currentUser: data.user.name
+                        });
                     } else {
+                        // Fallback: store data in global variables + localStorage
                         window.projects = data.data.projects || [];
                         window.tasks = data.data.tasks || [];
                         window.appUsers = data.data.users || [];
                         window.teamId = data.user.teamId;
-                        // persist to localStorage so other pages can read after navigation
+
+                        // Persist to localStorage for offline/other pages
                         localStorage.setItem('projects', JSON.stringify(window.projects));
                         localStorage.setItem('tasks', JSON.stringify(window.tasks));
                         localStorage.setItem('teamUsers', JSON.stringify(window.appUsers));
@@ -73,8 +105,10 @@
                     }
                 }
 
+                // Redirect to main app
                 location.href = 'dashboard.html';
             } else {
+                // Show error
                 alert(data.message || 'Login failed');
             }
         });

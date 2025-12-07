@@ -11,16 +11,28 @@
 
 <body>
     <div class="container mt-5 pt-4">
+
+        <!-- ======================================== -->
+        <!-- PAGE TITLE -->
+        <!-- ======================================== -->
         <h1 class="mb-5">Team Performance Reports</h1>
 
+        <!-- ======================================== -->
+        <!-- ACCESS DENIED MESSAGE (shown for non-managers) -->
+        <!-- ======================================== -->
         <div id="accessDenied" class="text-center py-5" style="display:none;">
             <h3 class="text-danger">Access Denied</h3>
             <p>Only managers can view reports.</p>
             <a href="dashboard.html" class="btn btn-accent">Back to Dashboard</a>
         </div>
 
+        <!-- ======================================== -->
+        <!-- REPORTS CONTENT (visible only to managers) -->
+        <!-- ======================================== -->
         <div id="reportsContent">
             <div class="row g-4">
+
+                <!-- Task Status Distribution (Doughnut Chart) -->
                 <div class="col-md-6">
                     <div class="card shadow">
                         <div class="card-body">
@@ -29,6 +41,8 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Tasks by Priority (Bar Chart) -->
                 <div class="col-md-6">
                     <div class="card shadow">
                         <div class="card-body">
@@ -37,6 +51,8 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Task Completion Over Time (Line Chart) -->
                 <div class="col-md-12">
                     <div class="card shadow">
                         <div class="card-body">
@@ -45,29 +61,39 @@
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
 
+    <!-- ======================================== -->
+    <!-- EXTERNAL LIBRARIES -->
+    <!-- ======================================== -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="assets/js/main.js"></script>
+
+    <!-- ======================================== -->
+    <!-- REPORTS PAGE LOGIC -->
+    <!-- Generates three charts only if user is a manager -->
+    <!-- ======================================== -->
     <script>
         window.addEventListener('load', () => {
+            // Load tasks from global or localStorage (offline fallback)
             const tasks = window.tasks || JSON.parse(localStorage.getItem('tasks') || '[]');
 
+            // Block access for non-managers
             if (localStorage.getItem('role') !== 'manager') {
                 document.getElementById('reportsContent').style.display = 'none';
                 document.getElementById('accessDenied').style.display = 'block';
                 return;
             }
 
-            // Status Chart
+            // === Task Status Distribution (Doughnut Chart) ===
             const status = {
                 'To Do': tasks.filter(t => t.status === 'todo').length,
                 'In Progress': tasks.filter(t => t.status === 'in-progress').length,
                 'Done': tasks.filter(t => t.status === 'done').length
             };
-
             new Chart(document.getElementById('statusChart'), {
                 type: 'doughnut',
                 data: {
@@ -79,14 +105,13 @@
                 }
             });
 
-            // Priority Chart
+            // === Tasks by Priority (Bar Chart) ===
             const priority = {
                 Critical: tasks.filter(t => t.priority === 'critical').length,
                 High: tasks.filter(t => t.priority === 'high').length,
                 Medium: tasks.filter(t => t.priority === 'medium').length,
                 Low: tasks.filter(t => t.priority === 'low').length
             };
-
             new Chart(document.getElementById('priorityChart'), {
                 type: 'bar',
                 data: {
@@ -99,7 +124,7 @@
                 }
             });
 
-            // Weekly Chart
+            // === Weekly Task Completion Trend (Line Chart) ===
             const doneCount = tasks.filter(t => t.status === 'done').length;
             new Chart(document.getElementById('weeklyChart'), {
                 type: 'line',

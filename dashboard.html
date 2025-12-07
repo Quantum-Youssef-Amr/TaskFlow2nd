@@ -11,8 +11,14 @@
 
 <body>
     <div class="container mt-5 pt-4">
+        <!-- ======================================== -->
+        <!-- WELCOME MESSAGE -->
+        <!-- ======================================== -->
         <h1 class="mb-4">Hello, <span class="text-accent" id="userName">User</span>!</h1>
 
+        <!-- ======================================== -->
+        <!-- TASK SUMMARY STAT CARDS -->
+        <!-- ======================================== -->
         <div class="row g-4 mb-5">
             <div class="col-md-3">
                 <div class="card text-center p-4 shadow">
@@ -40,6 +46,9 @@
             </div>
         </div>
 
+        <!-- ======================================== -->
+        <!-- WEEKLY COMPLETION TREND CHART -->
+        <!-- ======================================== -->
         <div class="card shadow">
             <div class="card-body">
                 <h5>Task Completion Trend</h5>
@@ -48,32 +57,46 @@
         </div>
     </div>
 
+    <!-- ======================================== -->
+    <!-- EXTERNAL LIBRARIES & APP SCRIPT -->
+    <!-- ======================================== -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="assets/js/main.js"></script>
+
+    <!-- ======================================== -->
+    <!-- DASHBOARD-SPECIFIC INITIALISATION SCRIPT -->
+    <!-- Runs on page load to fill the stats and draw the chart -->
+    <!-- ======================================== -->
     <script>
-        // NOW IT WORKS — Access global data from main.js
+        // Wait for the full page (including main.js) to load
         window.addEventListener('load', () => {
+            // Get tasks either from the global variable set by main.js or from localStorage (offline fallback)
             const tasks = window.tasks || JSON.parse(localStorage.getItem('tasks') || '[]');
 
+            // Calculate basic statistics
             const total = tasks.length;
             const completed = tasks.filter(t => t.status === 'done').length;
             const inProgress = tasks.filter(t => t.status === 'in-progress').length;
             const overdue = tasks.filter(t => new Date(t.due) < new Date() && t.status !== 'done').length;
 
+            // Update the stat cards
             document.getElementById('totalTasks').textContent = total;
             document.getElementById('completedTasks').textContent = completed;
             document.getElementById('inProgressTasks').textContent = inProgress;
             document.getElementById('overdueTasks').textContent = overdue;
 
+            // Show the current user's name (fallback to "User")
             document.getElementById('userName').textContent = localStorage.getItem('user') || 'User';
 
+            // Render a simple weekly trend line chart using the current completed count
             new Chart(document.getElementById('trendChart'), {
                 type: 'line',
                 data: {
                     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
                     datasets: [{
                         label: 'Completed Tasks',
+                        // Fake progressive data based on today's completed count (never negative)
                         data: [completed - 5, completed - 3, completed - 2, completed - 1, completed, completed + 1, completed + 2].map(n => Math.max(0, n)),
                         borderColor: '#FF0B55',
                         backgroundColor: 'rgba(255,11,85,0.1)',

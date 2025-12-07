@@ -11,16 +11,24 @@
 
 <body>
     <div class="container mt-5 pt-4">
+
+        <!-- ======================================== -->
+        <!-- PAGE TITLE -->
+        <!-- ======================================== -->
         <h1 class="mb-4">Team Members</h1>
 
-        <!-- Access Denied for non-managers -->
+        <!-- ======================================== -->
+        <!-- ACCESS DENIED MESSAGE (non-managers) -->
+        <!-- ======================================== -->
         <div id="accessDenied" class="text-center py-5" style="display:none;">
             <h3 class="text-danger">Access Denied</h3>
             <p>Only managers can view team members.</p>
             <a href="dashboard.html" class="btn btn-accent">Back to Dashboard</a>
         </div>
 
-        <!-- Main Content -->
+        <!-- ======================================== -->
+        <!-- MAIN CONTENT - Team Members Table -->
+        <!-- ======================================== -->
         <div id="usersContent">
             <div class="card shadow">
                 <div class="card-body">
@@ -46,20 +54,28 @@
         </div>
     </div>
 
+    <!-- ======================================== -->
+    <!-- EXTERNAL SCRIPTS -->
+    <!-- ======================================== -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/main.js"></script>
+
+    <!-- ======================================== -->
+    <!-- USERS PAGE LOGIC -->
+    <!-- Shows team member list only to managers -->
+    <!-- ======================================== -->
     <script>
-        // Check if manager
+        // Check if current user is a manager
         if (localStorage.getItem('role') !== 'manager') {
             document.getElementById('usersContent').style.display = 'none';
             document.getElementById('accessDenied').style.display = 'block';
         } else {
-            // Get data from login response
+            // Retrieve team data from localStorage (set during login)
             const teamId = localStorage.getItem('teamId');
             const teamName = localStorage.getItem('teamName') || 'My Team';
             const users = JSON.parse(localStorage.getItem('teamUsers') || '[]');
 
-            // Render table
+            // Render the team members table
             const tbody = document.getElementById('usersTable');
             if (users.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No team members yet</td></tr>';
@@ -70,19 +86,19 @@
             <td>${u.email}</td>
             <td>
               <span class="badge ${u.role === 'manager' ? 'bg-danger' : 'bg-secondary'}">
-                ${u.role.toUpperCase()}
+${u.role.toUpperCase()}
               </span>
             </td>
             <td><strong class="text-accent">#${teamId}</strong></td>
             <td>${teamName}</td>
           </tr>
-        `).join('');
+`).join('');
             }
 
-            // Optional: Show team info at top
+            // Display team info banner just below the page title
             document.querySelector('h1').insertAdjacentHTML('afterend',
                 `<div class="alert alert-info mb-4">
-          <strong>Team ID:</strong> <span class="text-accent">#${teamId}</span> | 
+          <strong>Team ID:</strong> <span class="text-accent">#${teamId}</span> |
           <strong>Team Name:</strong> ${teamName}
         </div>`
             );

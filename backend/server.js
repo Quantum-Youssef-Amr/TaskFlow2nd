@@ -1,37 +1,68 @@
+// ========================================
+// TaskFlow Backend Server (Node.js + Express)
+// ========================================
+
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
-const app = express();
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+// Initialize Express app
+const app = express();
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure Multer for file uploads
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir); // Save files to 'uploads' folder
   },
-  filename: function (req, file, cb) {
-    const safe = Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.\-_%]/g, '_');
-    cb(null, safe);
+  filename: (req, file, cb) => {
+    // Generate safe, unique filename using timestamp + sanitized original name
+    const safeName = Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.\-_%]/g, '_');
+    cb(null, safeName);
   }
 });
+
 const upload = multer({ storage });
 
+// Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
 
+// ========================================
+// FILE UPLOAD ENDPOINT
+// ========================================
 app.post('/api/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ success: false, message: 'No file' });
-  const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-  res.json({ success: true, url, name: req.file.originalname });
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+
+  // Construct public URL for the uploaded file
+  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  
+  res.json({
+    success: true,
+    url: fileUrl,
+    name: req.file.originalname
+  });
 });
 
-app.use(cors());
-app.use(express.json());
+// ========================================
+// MIDDLEWARE SETUP
+// ========================================
+app.use(cors());                    // Allow cross-origin requests (for frontend)
+app.use(express.json());            // Parse incoming JSON bodies
 
+// ========================================
+// DATABASE CONNECTION
+// ========================================
 const db = mysql.createConnection({
   host: 'localhost',
   user: 'taskflow',
@@ -44,62 +75,70 @@ db.connect(err => {
     console.error('MySQL Connection Failed:', err);
     process.exit(1);
   }
-  console.log('MySQL Connected!');
+  console.log('MySQL Connected Successfully!');
 });
 
+// ========================================
+// USER LOGIN ENDPOINT
+// ========================================
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
 
   db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
-    if (err || results.length === 0) return res.json({ success: false, message: 'Invalid credentials' });
+    if (err || results.length === 0) {
+      return res.json({ success: false, message: 'Invalid credentials' });
+    }
 
     const user = results[0];
-    let match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      const demoEmails = ['manager@taskflow.com', 'user@taskflow.com', '123@123.com'];
-      if (password === '123456' && demoEmails.includes(user.email)) {
-        match = true;
-      }
-    }
-    if (!match) return res.json({ success: false, message: 'Invalid credentials' });
+    let passwordMatch = await bcrypt.compare(password, user.password);
 
-    const response = {
-      success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        teamId: user.team_id
-      }
-    };
+    // Demo account bypass (for testing only)
+    const demoEmails = ['manager@taskflow.com', 'user@taskflow.com', '123@123.com'];
+    if (!passwordMatch && password === '123456' && demoEmails.includes(email)) {
+      passwordMatch = true;
+    }
+
+    if (!passwordMatch) {
+      return res.json({ success: false, message: 'Invalid credentials' });
+    }
 
     const teamId = user.team_id;
+
+    // Fetch all team-related data after successful login
     db.query('SELECT * FROM projects WHERE team_id = ?', [teamId], (err, projects) => {
       db.query('SELECT * FROM tasks WHERE team_id = ?', [teamId], (err, tasks) => {
+        // Parse JSON fields (comments & files) stored as strings in DB
         if (Array.isArray(tasks)) {
-          tasks = tasks.map(t => {
+          tasks = tasks.map(task => {
             try {
-              if (t.comments && typeof t.comments === 'string') {
-                t.comments = JSON.parse(t.comments);
-              } else if (!t.comments) {
-                t.comments = [];
-              }
+              task.comments = task.comments ? JSON.parse(task.comments) : [];
+              task.files = task.files ? JSON.parse(task.files) : [];
             } catch (e) {
-              t.comments = [];
+              task.comments = [];
+              task.files = [];
             }
-            return t;
+            return task;
           });
         }
+
         db.query('SELECT id, name, email, role, team_id FROM users WHERE team_id = ?', [teamId], (err, users) => {
           db.query('SELECT * FROM teams WHERE id = ?', [teamId], (err, teams) => {
-            response.data = {
-              projects: projects || [],
-              tasks: tasks || [],
-              users: users || [],
-              team: (teams && teams[0]) || null
-            };
-            res.json(response);
+            res.json({
+              success: true,
+              user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                teamId: user.team_id
+              },
+              data: {
+                projects: projects || [],
+                tasks: tasks || [],
+                users: users || [],
+                team: teams && teams.length > 0 ? teams[0] : null
+              }
+            });
           });
         });
       });
@@ -107,173 +146,171 @@ app.post('/api/login', (req, res) => {
   });
 });
 
+// ========================================
+// DATA SYNC ENDPOINT (Offline-First Support)
+// ========================================
 app.post('/api/sync', async (req, res) => {
   const teamId = req.headers['team-id'];
   if (!teamId) return res.json({ success: false, message: 'Team ID required' });
 
-  const { projects, tasks } = req.body;
+  const { projects = [], tasks = [] } = req.body;
 
   try {
-    const incomingProjectIds = new Set((projects || []).map(p => String(p.id)));
+    // --- Step 1: Delete projects no longer present in client ---
+    const incomingProjectIds = new Set(projects.map(p => String(p.id)));
     const [dbProjects] = await db.promise().query('SELECT id FROM projects WHERE team_id = ?', [teamId]);
-    for (const dbProj of dbProjects) {
-      if (!incomingProjectIds.has(String(dbProj.id))) {
-        const [tasksToDelete] = await db.promise().query('SELECT comments, files FROM tasks WHERE projectId = ?', [dbProj.id]);
-        for (const t of tasksToDelete) {
-          if (t.files) {
-            try {
-              const filesArr = typeof t.files === 'string' ? JSON.parse(t.files) : t.files;
-              for (const f of filesArr || []) {
-                if (f.data && f.data.includes('/uploads/')) {
-                  const filePath = path.join(__dirname, '..', f.data.split('/uploads/')[1]);
-                  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-                }
-              }
-            } catch {}
-          }
-          if (t.comments) {
-            try {
-              const commentsArr = typeof t.comments === 'string' ? JSON.parse(t.comments) : t.comments;
-              for (const c of commentsArr || []) {
-                if (c.file && c.file.data && c.file.data.includes('/uploads/')) {
-                  const filePath = path.join(__dirname, '..', c.file.data.split('/uploads/')[1]);
-                  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-                }
-              }
-            } catch {}
-          }
+
+    for (const proj of dbProjects) {
+      if (!incomingProjectIds.has(String(proj.id))) {
+        // Clean up associated task files before deleting
+        const [taskFiles] = await db.promise().query('SELECT comments, files FROM tasks WHERE projectId = ?', [proj.id]);
+        for (const t of taskFiles) {
+          await deleteAssociatedFiles(t);
         }
-        await db.promise().query('DELETE FROM tasks WHERE projectId = ?', [dbProj.id]);
-        await db.promise().query('DELETE FROM projects WHERE id = ?', [dbProj.id]);
+        await db.promise().query('DELETE FROM tasks WHERE projectId = ?', [proj.id]);
+        await db.promise().query('DELETE FROM projects WHERE id = ?', [proj.id]);
       }
     }
 
-    const incomingTaskIds = new Set((tasks || []).map(t => String(t.id)));
+    // --- Step 2: Delete tasks no longer present in client ---
+    const incomingTaskIds = new Set(tasks.map(t => String(t.id)));
     const [dbTasks] = await db.promise().query('SELECT id FROM tasks WHERE team_id = ?', [teamId]);
-    for (const dbTask of dbTasks) {
-      if (!incomingTaskIds.has(String(dbTask.id))) {
-        const [taskRows] = await db.promise().query('SELECT comments, files FROM tasks WHERE id = ?', [dbTask.id]);
-        for (const t of taskRows) {
-          if (t.files) {
-            try {
-              const filesArr = typeof t.files === 'string' ? JSON.parse(t.files) : t.files;
-              for (const f of filesArr || []) {
-                if (f.data && f.data.includes('/uploads/')) {
-                  const filePath = path.join(__dirname, '..', f.data.split('/uploads/')[1]);
-                  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-                }
-              }
-            } catch {}
-          }
-          if (t.comments) {
-            try {
-              const commentsArr = typeof t.comments === 'string' ? JSON.parse(t.comments) : t.comments;
-              for (const c of commentsArr || []) {
-                if (c.file && c.file.data && c.file.data.includes('/uploads/')) {
-                  const filePath = path.join(__dirname, '..', c.file.data.split('/uploads/')[1]);
-                  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-                }
-              }
-            } catch {}
-          }
+
+    for (const task of dbTasks) {
+      if (!incomingTaskIds.has(String(task.id))) {
+        const [taskData] = await db.promise().query('SELECT comments, files FROM tasks WHERE id = ?', [task.id]);
+        for (const t of taskData) {
+          await deleteAssociatedFiles(t);
         }
-        await db.promise().query('DELETE FROM tasks WHERE id = ?', [dbTask.id]);
+        await db.promise().query('DELETE FROM tasks WHERE id = ?', [task.id]);
       }
     }
 
+    // --- Step 3: Upsert incoming projects ---
     for (const p of projects) {
-      await new Promise((resolve, reject) => {
-        db.query(
-          'INSERT INTO projects (id, name, description, team_id) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, description = ?',
-          [p.id, p.name, p.description, teamId, p.name, p.description],
-          (err) => err ? reject(err) : resolve()
-        );
-      });
+      await db.promise().query(
+        'INSERT INTO projects (id, name, description, team_id) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, description = ?',
+        [p.id, p.name, p.description, teamId, p.name, p.description]
+      );
     }
 
+    // --- Step 4: Upsert incoming tasks ---
     for (const t of tasks) {
-      await new Promise((resolve, reject) => {
-        const commentsJson = JSON.stringify(t.comments || []);
-        let dueSql = null;
-        try {
-          if (t.due) {
-            const isoMatch = /^\d{4}-\d{2}-\d{2}$/.test(String(t.due));
-            if (isoMatch) {
-              dueSql = t.due;
-            } else {
-              const d = new Date(t.due);
-              if (!isNaN(d.getTime())) {
-                dueSql = d.toISOString().slice(0, 10);
-              } else {
-                dueSql = null;
-              }
-            }
-          }
-        } catch (e) {
-          dueSql = null;
-        }
+      const filesJson = JSON.stringify(Array.isArray(t.files) ? t.files : []);
+      const commentsJson = JSON.stringify(t.comments || []);
 
-        db.query(
-          `INSERT INTO tasks 
-           (id, projectId, title, description, assignee, priority, due, status, team_id, comments) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE 
-             title = ?, description = ?, assignee = ?, priority = ?, due = ?, status = ?, comments = ?`,
-          [
-            t.id, t.projectId, t.title, t.description, t.assignee, t.priority, dueSql, t.status, teamId, commentsJson,
-            t.title, t.description, t.assignee, t.priority, dueSql, t.status, commentsJson
-          ],
-          (err) => err ? reject(err) : resolve()
-        );
-      });
+      // Normalize due date to YYYY-MM-DD format
+      let dueDate = null;
+      if (t.due) {
+        const isoFormat = /^\d{4}-\d{2}-\d{2}$/.test(String(t.due));
+        if (isoFormat) {
+          dueDate = t.due;
+        } else {
+          const date = new Date(t.due);
+          if (!isNaN(date.getTime())) {
+            dueDate = date.toISOString().slice(0, 10);
+          }
+        }
+      }
+
+      await db.promise().query(
+        `INSERT INTO tasks 
+         (id, projectId, title, description, assignee, priority, due, status, team_id, comments, files)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+         title = ?, description = ?, assignee = ?, priority = ?, due = ?, status = ?, comments = ?, files = ?`,
+        [
+          t.id, t.projectId, t.title, t.description, t.assignee, t.priority, dueDate, t.status, teamId, commentsJson, filesJson,
+          t.title, t.description, t.assignee, t.priority, dueDate, t.status, commentsJson, filesJson
+        ]
+      );
     }
 
-    db.query('SELECT * FROM projects WHERE team_id = ?', [teamId], (err, projectsAfter) => {
-      if (err) return res.json({ success: false, message: 'Sync completed but fetch failed' });
-      db.query('SELECT * FROM tasks WHERE team_id = ?', [teamId], (err, tasksAfter) => {
-        if (err) return res.json({ success: false, message: 'Sync completed but fetch failed' });
-        if (Array.isArray(tasksAfter)) {
-          tasksAfter = tasksAfter.map(t => {
-            try {
-              if (t.comments && typeof t.comments === 'string') t.comments = JSON.parse(t.comments);
-              else if (!t.comments) t.comments = [];
-            } catch (e) {
-              t.comments = [];
-            }
-            return t;
-          });
-        }
-        res.json({ success: true, projects: projectsAfter || [], tasks: tasksAfter || [] });
-      });
+    // --- Step 5: Return fresh data ---
+    const [finalProjects] = await db.promise().query('SELECT * FROM projects WHERE team_id = ?', [teamId]);
+    const [finalTasks] = await db.promise().query('SELECT * FROM tasks WHERE team_id = ?', [teamId]);
+
+    const parsedTasks = finalTasks.map(task => {
+      try {
+        task.comments = task.comments ? JSON.parse(task.comments) : [];
+        task.files = task.task.files ? JSON.parse(task.files) : [];
+      } catch (e) {
+        task.comments = [];
+        task.files = [];
+      }
+      return task;
     });
+
+    res.json({
+      success: true,
+      projects: finalProjects,
+      tasks: parsedTasks
+    });
+
   } catch (err) {
     console.error('Sync failed:', err);
     res.json({ success: false, message: 'Sync failed' });
   }
 });
 
+// Helper function to delete uploaded files when tasks/comments are removed
+async function deleteAssociatedFiles(taskRow) {
+  const deleteFile = (url) => {
+    if (url && url.includes('/uploads/')) {
+      const filePath = path.join(__dirname, url.split('/uploads/')[1]);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+  };
+
+  try {
+    const files = typeof taskRow.files === 'string' ? JSON.parse(taskRow.files) : taskRow.files;
+    files?.forEach(f => deleteFile(f.url));
+  } catch (e) {}
+
+  try {
+    const comments = typeof taskRow.comments === 'string' ? JSON.parse(taskRow.comments) : taskRow.comments;
+    comments?.forEach(c => c.file?.url && deleteFile(c.file.url));
+  } catch (e) {}
+}
+
+// ========================================
+// USER REGISTRATION ENDPOINT
+// ========================================
 app.post('/api/register', async (req, res) => {
   const { name, email, password, role, teamId } = req.body;
-  const hashed = await bcrypt.hash(password, 10);
 
-  db.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
-    if (err || results.length > 0) return res.json({ success: false, message: 'Email already registered' });
+  // Check if email already exists
+  db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
+    if (err || results.length > 0) {
+      return res.json({ success: false, message: 'Email already registered' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     if (role === 'manager') {
+      // Manager creates a new team
       db.query('INSERT INTO teams (name) VALUES (?)', [`Team of ${name}`], (err, result) => {
-        if (err) return res.json({ success: false });
+        if (err) return res.json({ success: false, message: 'Team creation failed' });
+
         const newTeamId = result.insertId;
-        db.query('INSERT INTO users (name, email, password, role, team_id) VALUES (?, ?, ?, ?, ?)',
-          [name, email, hashed, 'manager', newTeamId],
+        db.query(
+          'INSERT INTO users (name, email, password, role, team_id) VALUES (?, ?, ?, ?, ?)',
+          [name, email, hashedPassword, 'manager', newTeamId],
           () => res.json({ success: true, teamId: newTeamId })
         );
       });
     } else {
+      // Member joins existing team
       if (!teamId) return res.json({ success: false, message: 'Team ID required' });
+
       db.query('SELECT id FROM teams WHERE id = ?', [teamId], (err, results) => {
-        if (err || results.length === 0) return res.json({ success: false, message: 'Invalid Team ID' });
-        db.query('INSERT INTO users (name, email, password, role, team_id) VALUES (?, ?, ?, ?, ?)',
-          [name, email, hashed, 'member', teamId],
+        if (err || results.length === 0) {
+          return res.json({ success: false, message: 'Invalid Team ID' });
+        }
+
+        db.query(
+          'INSERT INTO users (name, email, password, role, team_id) VALUES (?, ?, ?, ?, ?)',
+          [name, email, hashedPassword, 'member', teamId],
           () => res.json({ success: true })
         );
       });
@@ -281,6 +318,10 @@ app.post('/api/register', async (req, res) => {
   });
 });
 
-app.listen(5000, () => {
-  console.log('TaskFlow Backend FIXED & RUNNING on http://localhost:5000');
+// ========================================
+// START SERVER
+// ========================================
+const PORT = 5000;
+app.listen(PORT, () => {
+  console.log(`TaskFlow Backend RUNNING on http://localhost:${PORT}`);
 });

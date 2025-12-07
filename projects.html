@@ -11,6 +11,10 @@
 
 <body>
     <div class="container mt-5 pt-4">
+
+        <!-- ======================================== -->
+        <!-- PAGE HEADER - Title + New Project Button -->
+        <!-- ======================================== -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="text-white">My Projects</h1>
             <button id="newProjectBtn" class="btn btn-accent btn-lg px-4 shadow" data-bs-toggle="modal"
@@ -19,12 +23,17 @@
             </button>
         </div>
 
+        <!-- ======================================== -->
+        <!-- PROJECT GRID - Dynamically populated -->
+        <!-- ======================================== -->
         <div class="row" id="projectList">
             <!-- Projects loaded here -->
         </div>
     </div>
 
-    <!-- Create / Edit Project Modal -->
+    <!-- ======================================== -->
+    <!-- MODAL: Create / Edit Project -->
+    <!-- ======================================== -->
     <div class="modal fade" id="projectModal">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -53,13 +62,25 @@
         </div>
     </div>
 
+    <!-- ======================================== -->
+    <!-- EXTERNAL SCRIPTS -->
+    <!-- ======================================== -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/main.js"></script>
+
+    <!-- ======================================== -->
+    <!-- PROJECTS PAGE LOGIC -->
+    <!-- Handles rendering, creating, editing, and deleting projects -->
+    <!-- ======================================== -->
     <script>
-        // Get user data
+        // Load current user role and team ID from localStorage
         const role = localStorage.getItem('role') || 'member';
         const teamId = localStorage.getItem('teamId');
+
+        // Hide "New Project" button for non-managers
         if (role !== 'manager') document.getElementById('newProjectBtn').style.display = 'none';
+
+        // Render all projects belonging to the current team
         function renderProjects() {
             const list = document.getElementById('projectList');
             const teamProjects = window.projects.filter(p => String(p.team_id) === String(teamId));
@@ -75,15 +96,15 @@
                             <p class="card-text text-light flex-grow-1 small">${p.description || 'No description'}</p>
                             <div class="mt-auto">
                                 <a href="project-detail.html?id=${p.id}" class="btn btn-accent btn-sm me-2">Open Project</a>
-                                ${role === 'manager' ? `<button class="btn btn-warning btn-sm me-2" onclick="editProject(${p.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteProject(${p.id})">Delete</button>` : ''}
+${role === 'manager' ? `<button class="btn btn-warning btn-sm me-2" onclick="editProject(${p.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteProject(${p.id})">Delete</button>` : ''}
                             </div>
                         </div>
                     </div>
                 </div>
-            `).join('');
+`).join('');
         }
 
-        // Edit project
+        // Open modal in edit mode with existing project data
         window.editProject = (id) => {
             const project = window.projects.find(p => String(p.id) === String(id));
             if (!project) return;
@@ -94,7 +115,7 @@
             new bootstrap.Modal(document.getElementById('projectModal')).show();
         };
 
-        // Delete project
+        // Delete project and all its tasks (manager only)
         window.deleteProject = async (id) => {
             if (role !== 'manager') return;
             if (!id) return;
@@ -102,12 +123,11 @@
             window.projects = window.projects.filter(p => String(p.id) !== String(id));
             window.tasks = window.tasks.filter(t => String(t.projectId) !== String(id));
             await syncData();
-            // After sync, reload canonical data from backend
-            await syncData();
+            await syncData(); // Double sync to ensure clean state from backend
             renderProjects();
         };
 
-        // Save project (Create or Update)
+        // Save project (create new or update existing)
         document.getElementById('saveProjectBtn').addEventListener('click', async () => {
             const id = document.getElementById('editProjectId').value;
             const name = document.getElementById('projectName').value.trim();
@@ -140,10 +160,13 @@
             document.getElementById('projectModalTitle').textContent = 'Create Project';
         });
 
-        // Initial render
+        // Initial render on page load
         renderProjects();
     </script>
 
+    <!-- ======================================== -->
+    <!-- CARD HOVER EFFECT STYLES -->
+    <!-- ======================================== -->
     <style>
         .hover-lift {
             transition: all 0.3s ease;
